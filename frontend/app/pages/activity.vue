@@ -5,7 +5,7 @@
         <h1 class="sk-page-title flex items-center gap-2">
           <UIcon
             name="i-lucide-bar-chart-3"
-            class="text-(--sk-accent)"
+            class="text-(--sk-ink-muted)"
           />
           사용 통계
         </h1>
@@ -88,26 +88,26 @@
         <div class="grid grid-cols-2 gap-4">
           <ActivityStatCell
             icon="i-lucide-activity"
-            color="text-(--sk-accent)"
+            color="text-(--sk-ink-muted)"
             :value="me.this_month.requests"
             label="요청 수"
           />
           <ActivityStatCell
             icon="i-lucide-calendar-days"
-            color="text-emerald-500"
+            color="text-(--sk-ink-muted)"
             :value="me.this_month.days_active"
             label="활동일"
             unit="일"
           />
           <ActivityStatCell
             icon="i-lucide-history"
-            color="text-violet-500"
+            color="text-(--sk-ink-muted)"
             :value="myRecent"
             label="가장 최근 쓴 기능"
           />
           <ActivityStatCell
             icon="i-lucide-clock"
-            color="text-amber-500"
+            color="text-(--sk-ink-muted)"
             :value="lastSeenLabel"
             label="마지막 활동"
           />
@@ -153,7 +153,7 @@
       <div class="flex items-center gap-2 pt-2">
         <UIcon
           name="i-lucide-users"
-          class="text-(--sk-accent)"
+          class="text-(--sk-ink-muted)"
         />
         <h2 class="sk-heading">
           전체 사용 현황
@@ -372,7 +372,7 @@ const kpiCards = computed(() => {
       value: `${returnRate}%`,
       hint: '월간 사용자 중 주간 활동 비율',
       icon: 'i-lucide-repeat-2',
-      color: 'text-rose-500'
+      color: 'text-(--sk-ink-muted)'
     }
   ]
 })

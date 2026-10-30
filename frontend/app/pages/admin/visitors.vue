@@ -5,7 +5,7 @@
         <h1 class="sk-page-title flex items-center gap-2">
           <UIcon
             name="i-lucide-user-round-search"
-            class="text-(--sk-accent)"
+            class="text-(--sk-ink-muted)"
           />
           방문자 분석
           <UBadge
@@ -261,7 +261,7 @@ const kpiCards = computed(() => {
       value: stickiness === null ? '—' : `${stickiness}%`,
       hint: '월간 사용자 중 오늘 방문한 비율',
       icon: 'i-lucide-repeat-2',
-      color: 'text-rose-500'
+      color: 'text-(--sk-ink-muted)'
     },
     ...(requests30d === undefined
       ? []
@@ -270,7 +270,7 @@ const kpiCards = computed(() => {
           value: requests30d.toLocaleString(),
           hint: '전체 사용자의 요청 합계',
           icon: 'i-lucide-mouse-pointer-click',
-          color: 'text-amber-500'
+          color: 'text-(--sk-ink-muted)'
         }])
   ]
 })

@@ -31,28 +31,28 @@ export const requestKpis = (days: readonly DailyRequests[]) => {
       value: (days[days.length - 1]?.requests ?? 0).toLocaleString(),
       hint: '오늘 0시(KST)부터 지금까지',
       icon: 'i-lucide-activity',
-      color: 'text-(--sk-accent)'
+      color: 'text-(--sk-ink-muted)'
     },
     {
       label: '7D 요청',
       value: sum(days.slice(-7)).toLocaleString(),
       hint: '오늘 포함 최근 7일',
       icon: 'i-lucide-calendar-range',
-      color: 'text-emerald-500'
+      color: 'text-(--sk-ink-muted)'
     },
     {
       label: '30D 요청',
       value: sum(days.slice(-30)).toLocaleString(),
       hint: '오늘 포함 최근 30일',
       icon: 'i-lucide-mouse-pointer-click',
-      color: 'text-amber-500'
+      color: 'text-(--sk-ink-muted)'
     },
     {
       label: '1인·1일당 요청',
       value: perPersonDay === null ? '—' : perPersonDay.toLocaleString(),
       hint: '30일 요청 ÷ 사용자·활동일',
       icon: 'i-lucide-user-round',
-      color: 'text-violet-500'
+      color: 'text-(--sk-ink-muted)'
     }
   ]
 }

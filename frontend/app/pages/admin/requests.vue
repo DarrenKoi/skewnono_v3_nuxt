@@ -5,7 +5,7 @@
         <h1 class="sk-page-title flex items-center gap-2">
           <UIcon
             name="i-lucide-activity"
-            class="text-(--sk-accent)"
+            class="text-(--sk-ink-muted)"
           />
           요청 분석
           <UBadge

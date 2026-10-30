@@ -5,7 +5,7 @@
         <h1 class="flex items-center gap-2 sk-page-title">
           <UIcon
             name="i-lucide-file-search"
-            class="text-(--sk-accent)"
+            class="text-(--sk-ink-muted)"
           />
           운영 로그
         </h1>

@@ -179,7 +179,7 @@
                 </div>
                 <div
                   v-else-if="userDetailError"
-                  class="sk-body text-rose-500"
+                  class="sk-body text-(--sk-bad)"
                 >
                   불러오기 실패: {{ userDetailError }}
                 </div>

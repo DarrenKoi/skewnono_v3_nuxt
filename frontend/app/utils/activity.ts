@@ -49,21 +49,21 @@ export const activeUserKpis = (counts: { dau: number, wau: number, mau: number }
     value: counts.dau,
     hint: '오늘 활동한 사용자',
     icon: 'i-lucide-user',
-    color: 'text-(--sk-accent)'
+    color: 'text-(--sk-ink-muted)'
   },
   {
     label: 'WAU',
     value: counts.wau,
     hint: '최근 7일 활동한 사용자',
     icon: 'i-lucide-users',
-    color: 'text-violet-500'
+    color: 'text-(--sk-ink-muted)'
   },
   {
     label: 'MAU',
     value: counts.mau,
     hint: '최근 30일 활동한 사용자',
     icon: 'i-lucide-user-check',
-    color: 'text-emerald-500'
+    color: 'text-(--sk-ink-muted)'
   }
 ]
 
