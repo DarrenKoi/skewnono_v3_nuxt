@@ -4,7 +4,7 @@
       <h1 class="sk-page-title flex items-center gap-2">
         <UIcon
           name="i-lucide-shield-check"
-          class="text-sky-500"
+          class="text-(--sk-accent)"
         />
         관리자 도구
         <UBadge
