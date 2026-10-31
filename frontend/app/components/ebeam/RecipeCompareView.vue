@@ -347,7 +347,9 @@ watch(selectedParameters, (params) => {
 
 const identity = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
 const metaStats = computed<MetaBarStat[]>(() => [
-  { key: 'recipes', label: 'Recipes', value: selected.value.length.toLocaleString(), tone: 'accent' },
+  // Recipes actually compared — skipped ones are listed in `missing`. Until the
+  // response lands, the selection count is the best answer.
+  { key: 'recipes', label: 'Recipes', value: (data.value ? recipes.value.length : selected.value.length).toLocaleString(), tone: 'accent' },
   { key: 'params', label: 'Params', value: selectedParameters.value.length.toLocaleString(), tone: 'neutral' }
 ])
 
