@@ -118,7 +118,7 @@ fabricated; only the shape imitates.
 import hashlib
 import random
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 from functools import lru_cache
 
@@ -1786,7 +1786,19 @@ def get_recipe_compare_data(
     tool_type: ToolType,
     recipes: Sequence[CompareRequestItem]
 ) -> RecipeCompareResponse:
+    """Compare over this module's (fabricated) recipe open."""
+    return build_compare(tool_type, recipes, get_recipe_open_data)
+
+
+def build_compare(
+    tool_type: ToolType,
+    recipes: Sequence[CompareRequestItem],
+    open_recipe: Callable[..., RecipeDetailResponse],
+) -> RecipeCompareResponse:
     """Compact per-recipe comparison payload: IDP fields + slot image names.
+
+    Shared by mock and office: each passes its own ``get_recipe_open_data`` as
+    ``open_recipe``, so compare is derived from open on both sides.
 
     Reuses get_recipe_open_data so compare matches open. AMP is NOT included:
     it is fetched per visible cell through param-detail, so compare shows the
@@ -1805,7 +1817,7 @@ def get_recipe_compare_data(
         if not name:
             continue
         fab = (item.get("fab_name") or "").strip().upper() or None
-        detail = get_recipe_open_data(
+        detail = open_recipe(
             recipe_id=name, fab_name=fab, tool_category=tool_type
         )
 

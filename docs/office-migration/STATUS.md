@@ -79,9 +79,10 @@ sem_list와 storage를 제외한 행의 검증일은 개별 확인일이 아니�
 - **chat은 표에 없습니다.** 스레드 저장소가 집과 사무실에서 같은 코드
   (`chat/store.py`)라 `providers/`가 없고, RAG는 `_rag` checkout 기준으로
   따로 결정됩니다. 자세한 내용은 `chat/MIGRATION.md`를 참고합니다.
-- **recipe_search의 `/compare`는 office 모드에서도 mock을 그대로 내보냅니다.**
-  `office_example.py`가 `get_recipe_compare_data`를 mock에서 재수출하기
-  때문입니다. 나머지 엔드포인트는 사내 소스에 연결되어 있습니다.
+- **recipe_search의 `/compare`는 2026-11-01에 연결했고 아직 실데이터로
+  확인하지 않았습니다.** recipe마다 열람(`get_recipe_open_data`)을 차례로 불러
+  만들므로, 비교 결과가 열람 결과와 같습니다. recipe 10개 안쪽을 기준으로 한
+  방식이며, 위치를 찾지 못하는 recipe가 하나라도 있으면 요청 전체가 실패합니다.
 - **hardware는 탭 단위로 전환합니다.** 디스패처가 `providers/<탭>/office.py`를
   지연 임포트하고, 없는 탭은 같은 폴더의 `mock.py`로 **표시 없이** 폴백합니다.
   어떤 탭이 실데이터인지는 `ls providers/*/office.py` 또는 폴백마다 남는 INFO

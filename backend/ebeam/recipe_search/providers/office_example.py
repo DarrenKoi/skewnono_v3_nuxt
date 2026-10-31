@@ -81,14 +81,13 @@ unreachable. They are separate functions from ``_to_detail_response`` for
 exactly that reason — the mapping is covered by a tracked test that needs
 neither.
 
-STILL NOT WIRED:
+COMPARE (wired 2026-11-01):
 
-* ``get_recipe_compare_data`` — re-exported from the mock below. Compare may
-  request up to 200 recipes, and the honest office implementation is one FTP
-  session per distinct tool with all of that tool's .idp files batched into a
-  single ``HostSpec(files=[...])``. Until that exists, compare returns mock
-  data while ``/recipe-detail`` returns real data, so **the "compare is derived
-  from open" invariant is knowingly broken office-side.** See the TODO there.
+* ``get_recipe_compare_data`` runs this module's ``get_recipe_open_data`` once
+  per requested recipe through the mock's shared ``build_compare``, so compare
+  stays derived from open. Sequential: one locate + FTP download per recipe.
+  Fine for the usual ≤10 recipes (user-confirmed 2026-11-01); a large compare
+  is slow. One unplaceable recipe fails the whole request, as it does on open.
 
 ``align_images`` and ``amp_info`` used to be listed here as fabricated even at
 the office. They are gone as of 2026-07-29: their source turned out to be the
@@ -188,6 +187,7 @@ from backend.ebeam.recipe_search.contracts import (
     MeasMarks,
     ParamDetailRequestItem,
     ParamDetailResponse,
+    RecipeCompareResponse,
     RecipeDetailResponse,
     RecipeLocationsResponse,
     RecipeSearchResponse,
@@ -201,14 +201,7 @@ from backend.ebeam.recipe_search.contracts import (
     WaferMpInfoRow,
 )
 from backend.sem_list.data import get_sem_list
-# TODO(office): replace with a batched IDP-backed implementation — one FTP
-# session per distinct eqp_ip, every recipe's .idp in one HostSpec(files=[...]).
-# Re-exported (not reimplemented) so that when it lands it can stay derived
-# from open, the invariant the mock guarantees.
-from backend.ebeam.recipe_search.providers.mock import (
-    IMAGE_SLOTS,
-    get_recipe_compare_data,
-)
+from backend.ebeam.recipe_search.providers.mock import IMAGE_SLOTS, build_compare
 
 
 __all__ = [
@@ -2303,6 +2296,16 @@ def get_recipe_open_data(
     frames = _parse_idp(data, f"{location.idp_stem}.idp")
 
     return _to_detail_response(frames, recipe, fab_name or "", tool_type, location)
+
+
+def get_recipe_compare_data(
+    tool_type: ToolType,
+    recipes: Sequence[CompareRequestItem],
+) -> RecipeCompareResponse:
+    """Compare = recipe open per recipe, reshaped by the mock's ``build_compare``."""
+    # ponytail: sequential open per recipe; group by eqp_ip into one FTP
+    # session (HostSpec(files=[...])) if large compares get slow.
+    return build_compare(tool_type, recipes, get_recipe_open_data)
 
 
 # ── measurement locations (IDP version index) ─────────────────────────────

@@ -682,3 +682,20 @@ class TestLocateViaTools:
             calls.clear()
             assert oe._locate_via_tools("cd-sem", RECIPE, "R3", [], prefer=prefer) is None
             assert sorted(calls) == ["10.1.2.1", "10.1.2.2", "10.1.2.7"]
+
+
+def test_office_compare_is_built_from_office_open(monkeypatch):
+    """Compare must reshape the OFFICE open, never fall back to the mock's."""
+    calls = []
+    def fake_open(recipe_id, fab_name, tool_category):
+        calls.append((recipe_id, fab_name, tool_category))
+        return {"recipe_id": f"office:{recipe_id}", "fab_name": fab_name,
+                "locator": {}, "idp_image_info": []}
+
+    monkeypatch.setattr(oe, "get_recipe_open_data", fake_open)
+    out = oe.get_recipe_compare_data(
+        "cd-sem",
+        [{"recipe_name": "A", "fab_name": "r3"}, {"recipe_name": "B", "fab_name": "M14A"}],
+    )
+    assert calls == [("A", "R3", "cd-sem"), ("B", "M14A", "cd-sem")]
+    assert [r["recipe_id"] for r in out["recipes"]] == ["office:A", "office:B"]

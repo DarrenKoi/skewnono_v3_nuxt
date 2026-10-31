@@ -59,7 +59,7 @@ files-per-connection; do the same here if a real request is seen timing out.
 | `/align-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
 | `/align-images` | Redis recipe registry (fallback: meas_hist, then `datarec.locate_recipe`) → tool FTP raw-folder listing | wired, unverified on real data |
 | `/recipe-image` | tool FTP raw folder (bytes), MinIO write-through cache | wired, unverified on real data |
-| `/compare` | — | mock (re-exported) |
+| `/compare` | `get_recipe_open_data` per recipe (shared `mock.build_compare`) | wired, unverified on real data |
 | `/registry-check` | Redis recipe registry (2 `hget` per recipe) | wired, unverified on real data |
 | `/measurement-locations` | OpenSearch `{cdsem,hvsem}_idp_ver` (highest version's `raw_data` + `wafer_para_loc_info`) | wired, unverified on real data — `wafer_para_loc_info` shape is OFFICE-VERIFY |
 
@@ -141,12 +141,14 @@ tools that are, by definition, unwell:
 The cache covers the sequential case (a second engineer, an hour later);
 `single_flight` covers the simultaneous one. Neither substitutes for the other.
 
-**The "compare is derived from open" invariant is knowingly broken office-side
-right now.** `/recipe-detail` returns parsed IDP data while `/compare` returns
-the mock's generator output for the same recipe, so the two disagree. Closing
-that means one FTP session per distinct `eqp_ip` with every requested recipe's
-`.idp` batched into a single `HostSpec(files=[...])` — compare accepts up to
-200 names, and 200 sequential downloads would hold a worker for minutes.
+**Compare is derived from open on both sides (wired 2026-11-01).** The office
+`get_recipe_compare_data` passes its own `get_recipe_open_data` to the mock's
+`build_compare`, so `/compare` and `/recipe-detail` agree for the same recipe.
+It opens recipes **sequentially** — one locate + FTP download each — which is
+fine for the usual ≤10 recipes (user-confirmed 2026-11-01). If large compares
+get slow, group by `eqp_ip` into one FTP session with every `.idp` batched into
+a single `HostSpec(files=[...])`. One unplaceable recipe fails the whole
+request, as it does on open.
 
 `align_images` and `amp_info` used to be **fabricated even at the office**,
 isolated in `_sourceless_extras()` against the day a source landed. It landed

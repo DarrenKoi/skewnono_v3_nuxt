@@ -4,8 +4,8 @@ Home:   .venv/bin/pytest backend/ebeam/recipe_search
 Office: SKEWNONO_RECIPE_SEARCH_PROVIDER=office .venv/bin/pytest backend/ebeam/recipe_search
 
 `get_recipe_catalog` (Redis) and `get_recipe_open_data` (tool FTP + the 사내 IDP
-parser) both swap; only `get_recipe_compare_data` is still re-exported from
-providers/mock.py behind a TODO(office). So under the office provider this file
+parser) both swap, and `get_recipe_compare_data` follows open. So under the
+office provider this file
 does REAL I/O — an OpenSearch lookup and an FTP download per detail call — and
 is the closest thing recipe_search has to an end-to-end office check.
 
