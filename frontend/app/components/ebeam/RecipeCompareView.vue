@@ -55,6 +55,7 @@
       <AppLoadingState
         v-if="pending"
         title="비교 데이터를 불러오는 중입니다."
+        :description="isLargeCompare ? LARGE_COMPARE_NOTICE : undefined"
       />
 
       <div
@@ -67,6 +68,12 @@
         />
         <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
           비교 데이터를 불러오지 못했습니다.
+        </p>
+        <p
+          v-if="isLargeCompare"
+          class="mt-1 sk-meta"
+        >
+          recipe 수를 줄여 다시 시도해 주세요. {{ LARGE_COMPARE_NOTICE }}
         </p>
         <UButton
           class="mt-3"
@@ -218,6 +225,14 @@ const props = defineProps<{
 const fabSegment = computed(() => buildFabSegment(props.fabs))
 const { entries, selected, remove } = useRecipeSelectionSet(props.toolType)
 const { fetchCompare } = useRecipeCompareApi()
+
+// The office opens each recipe's .idp off its tool one after another, so a
+// large compare can outlast the server's request timeout.
+// ponytail: count-based hint; drop it once compare batches per tool.
+const LARGE_COMPARE_THRESHOLD = 10
+const LARGE_COMPARE_NOTICE
+  = `recipe가 ${LARGE_COMPARE_THRESHOLD}개를 넘으면 장비에서 파일을 하나씩 받아 오느라 오래 걸리고, 서버 응답 시간이 초과되어 연결이 끊길 수 있습니다.`
+const isLargeCompare = computed(() => selected.value.length > LARGE_COMPARE_THRESHOLD)
 
 const backRoute = computed(() => `/ebeam/${props.toolType}/${fabSegment.value}/recipe-search`)
 const containsFallback = computed(() =>
