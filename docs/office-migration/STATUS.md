@@ -82,7 +82,8 @@ sem_list와 storage를 제외한 행의 검증일은 개별 확인일이 아니�
 - **recipe_search의 `/compare`는 2026-11-01에 연결했고 아직 실데이터로
   확인하지 않았습니다.** recipe마다 열람(`get_recipe_open_data`)을 차례로 불러
   만들므로, 비교 결과가 열람 결과와 같습니다. recipe 10개 안쪽을 기준으로 한
-  방식이며, 위치를 찾지 못하는 recipe가 하나라도 있으면 요청 전체가 실패합니다.
+  방식입니다. 열지 못한 recipe는 비교에서 빼고 화면에 "찾지 못함"으로
+  표시합니다.
 - **hardware는 탭 단위로 전환합니다.** 디스패처가 `providers/<탭>/office.py`를
   지연 임포트하고, 없는 탭은 같은 폴더의 `mock.py`로 **표시 없이** 폴백합니다.
   어떤 탭이 실데이터인지는 `ls providers/*/office.py` 또는 폴백마다 남는 INFO

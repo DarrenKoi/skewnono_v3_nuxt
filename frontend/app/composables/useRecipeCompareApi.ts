@@ -44,10 +44,18 @@ export interface CompareRecipeRef {
   fab_name: string
 }
 
+/** A requested recipe that could not open — skipped, not fatal to the compare. */
+export interface CompareMissing {
+  recipe_name: string
+  fab_name: string
+  reason: string
+}
+
 export interface RecipeCompareResponse {
   tool_type: RecipeSearchToolType
   fab_names: string[]
   recipes: CompareRecipe[]
+  missing: CompareMissing[]
 }
 
 export interface RecipeCompareParams {

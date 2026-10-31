@@ -147,8 +147,10 @@ The cache covers the sequential case (a second engineer, an hour later);
 It opens recipes **sequentially** — one locate + FTP download each — which is
 fine for the usual ≤10 recipes (user-confirmed 2026-11-01). If large compares
 get slow, group by `eqp_ip` into one FTP session with every `.idp` batched into
-a single `HostSpec(files=[...])`. One unplaceable recipe fails the whole
-request, as it does on open.
+a single `HostSpec(files=[...])`. A recipe that cannot open (`LookupError`,
+`SourceUnavailable`, `ImageNotFound`) is skipped and listed in the response's
+`missing` with the reason; the page names it. Config errors still fail the
+request, since they would fail every recipe.
 
 `align_images` and `amp_info` used to be **fabricated even at the office**,
 isolated in `_sourceless_extras()` against the day a source landed. It landed
@@ -519,6 +521,9 @@ production equipment.
       # single fab_name now that the request carries one fab per recipe.
       fab_names: list[str]
       recipes: list[CompareRecipe]
+      # Requested recipes that could not open, with the reason. Skipped
+      # rather than failing the compare.
+      missing: list[CompareMissing]  # {recipe_name, fab_name, reason}
 
   class CompareRecipe(TypedDict):
       recipe_id: str

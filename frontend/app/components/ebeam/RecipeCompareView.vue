@@ -52,6 +52,36 @@
         @download="downloadExcel"
       />
 
+      <div
+        v-if="!pending && !error && missing.length"
+        class="rounded-2xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-3"
+        role="status"
+      >
+        <p class="flex items-center gap-1.5 sk-body text-(--sk-warn)">
+          <UIcon
+            name="i-lucide-triangle-alert"
+            class="h-4 w-4 shrink-0"
+          />
+          recipe {{ missing.length }}개를 찾지 못해 비교에서 뺐습니다.
+        </p>
+        <ul class="mt-1.5 flex flex-wrap gap-1.5">
+          <li
+            v-for="item in missing"
+            :key="recipePairKey(item.fab_name, item.recipe_name)"
+            :title="item.reason"
+            class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-muted-surface) px-2 py-1 font-mono text-xs text-(--sk-ink-muted)"
+          >
+            {{ item.recipe_name }}
+            <span
+              v-if="multiFab"
+              class="sk-fab-badge"
+            >
+              {{ item.fab_name }}
+            </span>
+          </li>
+        </ul>
+      </div>
+
       <AppLoadingState
         v-if="pending"
         title="비교 데이터를 불러오는 중입니다."
@@ -266,6 +296,7 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeCompareRespon
 )
 
 const recipes = computed(() => data.value?.recipes ?? [])
+const missing = computed(() => data.value?.missing ?? [])
 // recipe_id alone collides when the same recipe name is compared across two
 // fabs, so every compare surface is keyed on the pair.
 const compareColumns = computed<CompareColumn[]>(

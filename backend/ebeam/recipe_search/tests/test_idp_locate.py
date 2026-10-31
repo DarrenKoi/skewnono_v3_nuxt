@@ -699,3 +699,27 @@ def test_office_compare_is_built_from_office_open(monkeypatch):
     )
     assert calls == [("A", "R3", "cd-sem"), ("B", "M14A", "cd-sem")]
     assert [r["recipe_id"] for r in out["recipes"]] == ["office:A", "office:B"]
+
+
+def test_office_compare_lists_unopenable_recipes_instead_of_failing(monkeypatch):
+    from backend.msr_image.errors import SourceUnavailable
+
+    def fake_open(recipe_id, fab_name, tool_category):
+        if recipe_id == "GONE":
+            raise LookupError("recipe not located")
+        if recipe_id == "DOWN":
+            raise SourceUnavailable("tool unreachable")
+        return {"recipe_id": recipe_id, "fab_name": fab_name,
+                "locator": {}, "idp_image_info": []}
+
+    monkeypatch.setattr(oe, "get_recipe_open_data", fake_open)
+    out = oe.get_recipe_compare_data("cd-sem", [
+        {"recipe_name": "OK", "fab_name": "R3"},
+        {"recipe_name": "GONE", "fab_name": "R3"},
+        {"recipe_name": "DOWN", "fab_name": "m14a"},
+    ])
+    assert [r["recipe_id"] for r in out["recipes"]] == ["OK"]
+    assert [(m["recipe_name"], m["fab_name"]) for m in out["missing"]] == [
+        ("GONE", "R3"), ("DOWN", "M14A"),
+    ]
+    assert out["missing"][0]["reason"] == "recipe not located"

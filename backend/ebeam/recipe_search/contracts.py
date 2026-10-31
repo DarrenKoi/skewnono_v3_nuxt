@@ -26,6 +26,7 @@ __all__ = [
     "ParamInfoResponse",
     "ParamOccurrence",
     "ParameterListResponse",
+    "CompareMissing",
     "RecipeCompareResponse",
     "RecipeDetailResponse",
     "RecipeLocationsResponse",
@@ -324,12 +325,22 @@ class CompareRequestItem(TypedDict):
     fab_name: str
 
 
+# A requested recipe compare could not open (not located, unparseable, or its
+# tool unreachable). Listed instead of failing the whole compare, so the other
+# recipes still show and the page can say which ones are missing.
+class CompareMissing(TypedDict):
+    recipe_name: str
+    fab_name: str
+    reason: str
+
+
 class RecipeCompareResponse(TypedDict):
     tool_type: ToolType
     # Distinct fabs of the compared recipes, first-seen order. Replaces the
     # single ``fab_name`` now that the request body carries one fab per recipe.
     fab_names: list[str]
     recipes: list[CompareRecipe]
+    missing: list[CompareMissing]
 
 
 # ── registry check (2026-08-19) ───────────────────────────────────────────

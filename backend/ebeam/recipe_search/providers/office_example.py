@@ -87,7 +87,7 @@ COMPARE (wired 2026-11-01):
   per requested recipe through the mock's shared ``build_compare``, so compare
   stays derived from open. Sequential: one locate + FTP download per recipe.
   Fine for the usual ≤10 recipes (user-confirmed 2026-11-01); a large compare
-  is slow. One unplaceable recipe fails the whole request, as it does on open.
+  is slow. A recipe that cannot open is listed in ``missing`` and skipped.
 
 ``align_images`` and ``amp_info`` used to be listed here as fabricated even at
 the office. They are gone as of 2026-07-29: their source turned out to be the

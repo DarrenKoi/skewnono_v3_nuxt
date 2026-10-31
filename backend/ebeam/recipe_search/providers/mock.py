@@ -125,7 +125,9 @@ from functools import lru_cache
 from backend.ebeam.lateral_recipe.providers.mock import RECIPE_VERSION_RANGE
 from backend._core.cond_cursor import FRAME, format_cursor_info, marks_from_rows
 from backend.ebeam.recipe_search import rawfiles
+from backend.msr_image.errors import ImageNotFound, SourceUnavailable
 from backend.ebeam.recipe_search.contracts import (
+    CompareMissing,
     AlignDetailResponse,
     AlignImage,
     AlignImagesResponse,
@@ -1811,15 +1813,23 @@ def build_compare(
     every recipe onto the same tool.
     """
     out: list[CompareRecipe] = []
+    missing: list[CompareMissing] = []
     fab_order: list[str] = []
     for item in recipes:
         name = (item.get("recipe_name") or "").strip()
         if not name:
             continue
         fab = (item.get("fab_name") or "").strip().upper() or None
-        detail = open_recipe(
-            recipe_id=name, fab_name=fab, tool_category=tool_type
-        )
+        try:
+            detail = open_recipe(
+                recipe_id=name, fab_name=fab, tool_category=tool_type
+            )
+        # One recipe that cannot open must not blank the other columns. Config
+        # errors (bad tool IP, broken FTP config) still raise: they are not
+        # about this recipe and would fail every one of them.
+        except (LookupError, SourceUnavailable, ImageNotFound) as exc:
+            missing.append({"recipe_name": name, "fab_name": fab or "", "reason": str(exc)})
+            continue
 
         seen: set[str] = set()
         parameters: list[CompareParameter] = []
@@ -1844,4 +1854,7 @@ def build_compare(
         if detail["fab_name"] not in fab_order:
             fab_order.append(detail["fab_name"])
 
-    return {"tool_type": tool_type, "fab_names": fab_order, "recipes": out}
+    return {
+        "tool_type": tool_type, "fab_names": fab_order, "recipes": out,
+        "missing": missing,
+    }
