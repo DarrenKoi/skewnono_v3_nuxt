@@ -118,8 +118,8 @@ M_LOT_PREFIX_BY_FAC = {
 # .selectorMatches 둘 다).
 DEV_PHASES = ["t-EV", "tev", "p-EV", "PV", "TV"]
 
-# ctn_desc 에 나타나는 Pool 표기. office `_family_of` 의 `_POOL_TOKEN`(=pool|풀)
-# 이 셋 다 잡습니다.
+# 옛 포맷 ctn_desc 에 나타나던 Pool 표기. 2026-11-02 이후 룰은 이 토큰을 읽지
+# 않습니다 — 옛 포맷은 통째로 미준수(Gray)입니다. rng 소비 순서 때문에 남깁니다.
 POOL_TOKENS = ["Pool제", "Pool", "풀"]
 
 # 실물 ctn_desc 에 섞여 있는 개발코드 명. "Spica" 만 실제로 본 값이고
@@ -127,8 +127,7 @@ POOL_TOKENS = ["Pool제", "Pool", "풀"]
 DEV_CODES = ["Spica", "Vega", "Altair", "Rigel"]  # OFFICE-VERIFY (Spica 제외)
 
 # VG·RTC·Cubic 은 한 제품군인데 **표기가 여럿**입니다 (user-confirmed
-# 2026-08-25). office `_family_of` 의 `_VG_TOKEN` 이 이 다섯을 모두 잡으므로,
-# mock 도 다섯을 고루 내야 그 패턴의 각 가지가 집에서 실행됩니다.
+# 2026-08-25). 옛 포맷 표본용이며, 2026-11-02 이후 룰은 읽지 않습니다.
 VG_TOKENS = ["Vertical Gate", "VerticalGate", "Vertical", "VG", "RTC", "Cubic"]
 
 

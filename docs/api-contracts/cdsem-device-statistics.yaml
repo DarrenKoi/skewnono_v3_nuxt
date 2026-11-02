@@ -155,8 +155,8 @@ types:
     selector:
       type: object
       description: >
-        { fab, recipe_class } always present. Main keys on family + (phase_in for Core/VG
-        | yield_check for Pool) + optional memory_class (D8). M-fab omits family/phase (D15).
+        { fab, recipe_class, family } always present for R3. Core keys on phase_in; Core and
+        Pool key on memory_class; Other (RTC rule) keys on neither (D23, 2026-11-02).
     caps:
       type: object
       description: "{ WAFER, LEVEL, EDGE?, EDGE_EX?, _other } — integer caps; absent type = not applicable"
@@ -189,10 +189,11 @@ types:
       enum: ["Main", "Sample"]
     family:
       type: string
-      enum: ["Core", "Pool", "VG_RTC_Cubic"]
+      enum: ["Core", "Pool", "Other", null]
+      description: From the device description bracket "[phase / memory] …" (desc_format.py). null = not in that format → gray.
     phase:
       type: string
-      enum: ["t-EV", "EV", "TV", "PV", null]
+      enum: ["EV", "tEV", "DTV", "TTV", "TV", "PV", null]
     memory_class_auto:
       type: string
       enum: ["DRAM", "NAND", "unknown"]

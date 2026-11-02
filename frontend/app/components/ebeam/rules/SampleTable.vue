@@ -94,7 +94,7 @@ const props = defineProps<{
 
 const text = {
   title: 'Sample 룰',
-  subtitle: 'WAFER·LEVEL 외 파라미터는 측정 금지(0) · WF/WAFER 이름 파라미터는 면제'
+  subtitle: 'WAFER·LEVEL·EDGE·EDGE_EX 는 표의 상한 적용 · 기타 파라는 0 (추가 시 사유 필요) · WF/WAFER·DUMMY·ALIGN 이름은 면제'
 } as const
 
 interface SampleRow {

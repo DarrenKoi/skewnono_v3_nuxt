@@ -348,6 +348,8 @@ test('stage chip: description 앞 괄호의 phase', () => {
   assert.equal(extractStage('[tEV / NAND] X tEV Cell'), 'tEV')
   assert.equal(extractStage('[RTC / DRAM] VIRGO RTC Cell&PEri'), 'RTC')
   assert.equal(extractStage('[요소기술 / NAND] SSL Cut Cell'), '요소기술')
+  // 전각 괄호·슬래시 — backend 파서와 같은 NFKC 정규화.
+  assert.equal(extractStage('［TV ／ DRAM］ Spica TV Peri'), 'TV')
 })
 test('stage chip: 표준 포맷이 아니면 ? — 옛 토큰 추론을 하지 않는다', () => {
   assert.equal(extractStage('DRAM Pool제 (@Spica PV)'), '?')

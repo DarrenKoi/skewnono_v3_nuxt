@@ -96,7 +96,7 @@ export const deriveType = (name: string): ParamType => {
 
 // D3 — family/phase 는 여기서 파생하지 않습니다. backend 가 **device 의**
 // ctn_desc 에서 뽑아 `RecipeInput.family`/`.phase` 컬럼으로 실어 보내고
-// (office_example.py `_family_of`/`_phase_of`), 프런트는 소비만 합니다.
+// (backend `desc_format.parse_device_desc`), 프런트는 소비만 합니다.
 //
 // 예전에 여기 있던 `deriveFamily`/`derivePhase` 사본은 지웠습니다. 호출자가
 // 테스트뿐이었던 데다, `RecipeInput.ctn_desc` 가 두 provider 에서 서로 다른

@@ -37,6 +37,13 @@ def test_core_phase_spellings(desc, phase):
     assert parse_device_desc(desc)["family"] == "Core"
 
 
+def test_full_width_brackets_and_slash_are_accepted():
+    # 한글 IME 로 치면 ［／］ 전각이 섞이기 쉽습니다. 사람이 쓰는 칸이라 NFKC 로 받습니다.
+    assert parse_device_desc("［TV ／ DRAM］ Spica TV Peri") == {
+        "family": "Core", "phase": "TV", "memory_class": "DRAM",
+    }
+
+
 def test_pool_with_non_core_memory_falls_to_rtc_rule():
     # Pool 룰은 DRAM/NAND 로만 갈립니다 — 기타 메모리는 비-Core 일반 룰.
     assert parse_device_desc("[Pool제 / 기타] X PV Cell")["family"] == "Other"

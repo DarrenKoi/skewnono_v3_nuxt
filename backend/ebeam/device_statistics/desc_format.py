@@ -26,6 +26,7 @@ office 어댑터와 mock 이 **같이** 이 함수를 씁니다 — 한쪽만 �
 """
 
 import re
+import unicodedata
 from typing import Literal, TypedDict
 
 Family = Literal["Core", "Pool", "Other"]
@@ -47,7 +48,8 @@ _CORE_PHASES: dict[str, Phase] = {
 
 
 def parse_device_desc(desc: str | None) -> DescAxes | None:
-    m = _BRACKET.match(desc or "")
+    # NFKC — 사람이 치는 칸이라 전각 ［／］ 가 섞입니다. 프론트 extractStage 도 같습니다.
+    m = _BRACKET.match(unicodedata.normalize("NFKC", desc or ""))
     if not m:
         return None
     phase_key = re.sub(r"[\s\-]", "", m.group(1)).upper()

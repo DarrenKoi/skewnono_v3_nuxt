@@ -110,8 +110,8 @@ test('deriveType', () => {
 
 // --- D7 derivation ---
 // deriveFamily/derivePhase 의 테스트는 그 함수와 함께 지웠습니다 — family/phase
-// 파생은 backend(office_example.py `_family_of`/`_phase_of`)의 것이고, 그쪽
-// 회귀는 backend/ebeam/device_statistics/tests/ 가 봅니다.
+// 파생은 backend(`desc_format.parse_device_desc`)의 것이고, 그쪽 회귀는
+// backend/ebeam/device_statistics/tests/test_desc_format.py 가 봅니다.
 test('deriveType tolerates empty/malformed name', () => {
   assert.equal(deriveType(''), 'OTHER')
   assert.equal(deriveType(undefined as unknown as string), 'OTHER')
@@ -232,29 +232,26 @@ test('resolveRuleCell: cross-fab cell is ignored (D15)', () => {
   assert.equal(mres.kind === 'cell' && mres.cell.id, 'm14-main-dram')
 })
 
-// --- D19 Sample Core TV/PV EDGE bumps to 16; specific cell must precede phase-blind ---
-test('D19 Sample Core TV/PV EDGE 16 beats phase-blind Sample (order = precedence)', () => {
-  const sampleCoreTvpv: RuleCell = {
-    id: 'r3-sample-core-tvpv',
-    selector: { fac_id: 'R3', recipe_class: 'Sample', family: 'Core', phase_in: ['TV', 'PV'] },
-    caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 0, _other: 0 },
-    // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
-    // 포함 (user-confirmed 2026-08-05).
-    name_overrides: [
-      { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
-      { patterns: ['DUMMY'], match: 'affix', cap: null }
-    ]
-  }
-  const coreTvpvSample = applyAnnotation(
-    recipe({ recipe_class: 'Sample', family: 'Core', phase: 'PV', parameters: [{ name: 'EDGE', point_count: 14 }] })
-  )
-  // specific cell first → first-match picks it; EDGE 14 ≤ 16 passes
-  const res = resolveRuleCell(coreTvpvSample, [sampleCoreTvpv, sampleDram])
-  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-sample-core-tvpv')
-  assert.equal(evaluateRecipe(coreTvpvSample, res).pass, true)
-  // without the specific cell, the phase-blind cap 10 would (wrongly) flag it — documents the gap D19 closes
-  const fallback = resolveRuleCell(coreTvpvSample, [sampleDram])
-  assert.equal(evaluateRecipe(coreTvpvSample, fallback).pass, false)
+// --- Sample 은 Main 과 같은 EDGE 계열 cap (D23, user-confirmed 2026-11-02) ---
+const sampleOverrides = sampleDram.name_overrides
+const sampleCoreTvpv: RuleCell = {
+  id: 'r3-sample-core-tvpv',
+  selector: { fac_id: 'R3', recipe_class: 'Sample', family: 'Core', phase_in: ['TV', 'PV'] },
+  caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 0 },
+  name_overrides: sampleOverrides
+}
+test('Sample Core TV/PV: EDGE_EX 16 은 허용, 17 은 위반', () => {
+  const at = (n: number) => applyAnnotation(recipe({
+    recipe_class: 'Sample', phase: 'PV', parameters: [{ name: 'EDGE_EX', point_count: n }]
+  }))
+  assert.equal(evaluateRecipe(at(16), resolveRuleCell(at(16), [sampleCoreTvpv])).pass, true)
+  assert.equal(evaluateRecipe(at(17), resolveRuleCell(at(17), [sampleCoreTvpv])).pass, false)
+})
+test('first-match: 배열에서 앞선 셀이 겹치는 뒤 셀을 이긴다 (엔진 일반 성질)', () => {
+  const broad: RuleCell = { ...sampleCoreTvpv, id: 'broad', selector: { fac_id: 'R3', recipe_class: 'Sample', family: 'Core' } }
+  const r = applyAnnotation(recipe({ recipe_class: 'Sample', phase: 'PV' }))
+  assert.equal((resolveRuleCell(r, [sampleCoreTvpv, broad]) as { cell: RuleCell }).cell.id, 'r3-sample-core-tvpv')
+  assert.equal((resolveRuleCell(r, [broad, sampleCoreTvpv]) as { cell: RuleCell }).cell.id, 'broad')
 })
 
 // --- 룰 표 (user-confirmed 2026-11-02) ---

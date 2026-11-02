@@ -272,7 +272,8 @@ export type DevStage = string
 const STAGE_BRACKET = /^\s*\[\s*([^/\]]+?)\s*\//
 
 export const extractStage = (ctnDesc: string | undefined): DevStage => {
-  const head = STAGE_BRACKET.exec(ctnDesc ?? '')?.[1]
+  // NFKC — backend desc_format 과 같은 정규화(전각 ［／］ 허용).
+  const head = STAGE_BRACKET.exec((ctnDesc ?? '').normalize('NFKC'))?.[1]
   if (!head) return '?'
   // "Pool제" → "Pool" — 칩 색과 짧은 표기를 위해서만. 판정은 backend 가 합니다.
   return /^pool/i.test(head) ? 'Pool' : head
