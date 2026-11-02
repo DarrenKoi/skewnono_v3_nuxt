@@ -58,7 +58,6 @@ def test_r_family_device_desc_row_does_not_mask_the_r3_catalog(monkeypatch):
     monkeypatch.setattr(office_example, "_hvm_rows", lambda: list(hvm))
     meta = office_example._lot_meta()["R001"]
     assert meta == {"ctn_desc": "R3 설명", "prod_catg_cd": "DRAM"}
-    assert office_example._memory_class_auto(meta["prod_catg_cd"]) == "DRAM"
     assert office_example._lot_index()["R001"] == "R3"
 
 
@@ -70,41 +69,16 @@ def test_r_family_device_desc_row_still_resolves_a_lot_r3_catalog_lacks(monkeypa
     assert office_example._lot_meta()["R999"] == {"ctn_desc": "R4 설명", "prod_catg_cd": ""}
 
 
-# ── family 파생 (D3) ────────────────────────────────────────────────────────
-# 파서가 여기 하나뿐입니다 — 프런트의 사본은 2026-08-25 에 지웠습니다. 그래서
-# family 우선순위의 회귀는 전적으로 이 테스트가 봅니다.
+# ── family·phase·memory 파생 ────────────────────────────────────────────────
+# 파서는 desc_format.py 하나이고 그 회귀는 test_desc_format.py 가 봅니다.
 
 
-def test_family_vg_beats_pool_beats_core():
-    """VG·RTC·Cubic > Pool > Core (user-confirmed 2026-08-25).
+def test_recipe_axes_use_the_shared_description_parser():
+    """family·phase·memory 파생은 desc_format 한 곳뿐입니다 (user-confirmed
+    2026-11-02). 옛 토큰 추론(_family_of/_phase_of)이 어댑터에 되살아나면
+    mock 과 office 가 같은 description 을 다르게 읽습니다."""
+    from backend.ebeam.device_statistics import desc_format
 
-    VG 는 한 제품군인데 표기가 여럿입니다 — "Vertical Gate", "Vertical",
-    "VG", "RTC", "Cubic". 2026-07-31 에는 원천에서 판별할 근거가 없다고
-    보았으나, 담당자가 desc 에 이 표기들이 실린다고 확인했습니다.
-    """
-    assert office_example._family_of("DRAM Vertical Gate (@Spica)") == "VG_RTC_Cubic"
-    assert office_example._family_of("DRAM VerticalGate dev") == "VG_RTC_Cubic"
-    assert office_example._family_of("NAND vertical 3D lot") == "VG_RTC_Cubic"
-    assert office_example._family_of("DRAM VG (@Vega)") == "VG_RTC_Cubic"
-    assert office_example._family_of("RTC 검증 lot") == "VG_RTC_Cubic"
-    assert office_example._family_of("Cubic 개발") == "VG_RTC_Cubic"
-    # 겹치면 VG 가 Pool 을 이깁니다.
-    assert office_example._family_of("DRAM Pool제 vertical gate (@Spica PV)") == "VG_RTC_Cubic"
-    # VG 가 없으면 Pool, 둘 다 없으면 Core.
-    assert office_example._family_of("DRAM Pool제 (@Spica PV)") == "Pool"
-    assert office_example._family_of("DRAM T1Y 개발 lot") == "Core"
-
-
-def test_family_vg_token_does_not_fire_inside_a_word():
-    """단독 "VG" 는 단어경계로 좁힙니다 — "AVG"/"VGA" 는 VG 가 아닙니다."""
-    assert office_example._family_of("AVG CD 측정 lot") == "Core"
-    assert office_example._family_of("VGA 검사") == "Core"
-    # "RTC"/"Cubic" 도 마찬가지입니다.
-    assert office_example._family_of("PARTChange lot") == "Core"
-
-
-def test_family_derivation_ignores_phase_tokens():
-    """family 축과 phase 축은 서로를 지우지 않습니다."""
-    desc = "DRAM Pool제 (@Spica PV)"
-    assert office_example._family_of(desc) == "Pool"
-    assert office_example._phase_of(desc) == "PV"
+    assert office_example.parse_device_desc is desc_format.parse_device_desc
+    assert not hasattr(office_example, "_family_of")
+    assert not hasattr(office_example, "_phase_of")

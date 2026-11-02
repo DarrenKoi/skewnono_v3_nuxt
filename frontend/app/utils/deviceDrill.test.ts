@@ -88,14 +88,14 @@ test('an exempt job stays in the list, unflagged and marked', () => {
 
 const coreEarlyDram: RuleCell = {
   id: 'r3-core-tev-dram',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['EV', 'tEV', 'DTV', 'TTV'], memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [{ patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains', cap: 13 }]
 }
 
 const dramRecipe = (recipe_id: string, edgePoints: number): RecipeInput => ({
-  lot_cd: 'R000', recipe_id, fac_id: 'R3', ctn_desc: 't-EV DRAM Core', prod_catg_cd: 'DRAM',
-  recipe_class: 'Main', family: 'Core', phase: 't-EV', memory_class_auto: 'DRAM',
+  lot_cd: 'R000', recipe_id, fac_id: 'R3', ctn_desc: '[tEV / DRAM] Cubit tEV Cell', prod_catg_cd: 'DRAM',
+  recipe_class: 'Main', family: 'Core', phase: 'tEV', memory_class_auto: 'DRAM',
   parameters: [{ name: 'WAFER_CD', point_count: 13 }, { name: 'EDGE_L', point_count: edgePoints }]
 })
 

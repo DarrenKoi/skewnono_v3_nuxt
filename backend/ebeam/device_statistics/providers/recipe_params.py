@@ -18,17 +18,15 @@ docs/datatables/hitachi/recipe_params.txt 의 "사무실 파생 규칙" 절이�
 - recipe_class -> **recipe 이름이 "_S"/"SE" 로 끝나면 Sample**. 끝자리 고정
   이어야 합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 이 전부 Sample 이
   되고, recipe_class 가 프론트의 cap 선택 축(D2)이라 위반 판정까지 뒤집힙니다.
-- family -> device ctn_desc 에서 파생하며 **VG·RTC·Cubic > Pool > Core** 순서
-  입니다. VG 는 표기가 여럿이라("Vertical Gate"/"Vertical"/"VG"/"RTC"/"Cubic")
-  office `_VG_TOKEN` 이 다섯을 모두 잡습니다 (user-confirmed 2026-08-25).
-  2026-07-31 의 "VG 는 판별 근거가 없어 발행하지 않는다" 는 철회되었습니다.
-- family 와 phase 는 **device 의** ctn_desc 한 문자열에 같이 실립니다
-  ("DRAM Pool제 (@Spica PV)"). 둘 다 파생하되 룰 판정에서는 Pool 이 phase 를
-  이깁니다(ruleEngine.ts `selectorMatches`). 그 문자열을 내는 것은 이 모듈이
-  아니라 `mock.py` 의 device 행이고, 여기 `ctn_desc` 는 공정 스텝 이름입니다.
+- family / phase / memory_class_auto -> **device** description 의 앞 괄호
+  ``[(phase) / (DRAM|NAND|기타)]`` 에서 ``desc_format.parse_device_desc`` 로
+  파생합니다 (user-confirmed 2026-11-02 — 예전 토큰 추론 VG>Pool>Core 와
+  prod_catg_cd 기반 memory 파생을 대체). 괄호가 없으면 셋 다 비고 룰 미정.
+  그 문자열을 내는 것은 `mock.py` 의 device 행이고, 여기 `ctn_desc` 는 공정
+  스텝 이름입니다.
 - prod_catg_cd -> R3 카탈로그에만 있습니다. 이 mock 은 M fab lot 에도 값을
-  지어내지만(_prod_catg_for 의 fallback), 실물은 빈 값이고 따라서
-  memory_class_auto 가 unknown(수동 분류) 으로 떨어집니다.
+  지어내지만(_prod_catg_for 의 fallback), 실물은 빈 값입니다. 이제 룰 축에는
+  쓰이지 않고 payload 에만 실립니다.
 
 Internal module: callers outside this feature must import the public
 surface from `device_statistics.data` (the provider switch), not this file
@@ -43,6 +41,7 @@ from backend.ebeam.device_statistics.contracts import (
     ParameterRow,
     RecipeParamsRow,
 )
+from backend.ebeam.device_statistics.desc_format import DescAxes, parse_device_desc
 from backend.ebeam.device_statistics.para_buckets import (
     has_non_measurement_name,
 )
@@ -65,9 +64,6 @@ _MOTHER_MARK_SALT = 70009
 # recipe 수·이름은 이제 recipe_population 이 정합니다 — 여기서 따로 세면 두 표면의
 # recipe_id 가 갈라져 조인이 깨집니다 (예전이 그랬습니다). 도메인 100~200 (D22) 은
 # 그 모듈의 POOL_RANGE 와 주차 배율이 함께 만족합니다.
-
-FAMILIES: tuple[str, ...] = ("Core", "Pool", "VG_RTC_Cubic")
-PHASES: tuple[str, ...] = ("t-EV", "EV", "TV", "PV")
 
 # Parameter-name templates per type, chosen to exercise ruleEngine.deriveType
 # (longest-prefix EDGE_EX > EDGE > WAFER > LEVEL; everything else = OTHER).
@@ -160,17 +156,6 @@ TYPICAL_POINTS = {
 # OFFICE-VERIFY: 실물 배율은 확인된 바 없습니다 — "자릿수가 다르다" 는 성질만
 # 재현하고 절대값은 흉내 내지 않습니다.
 EXEMPT_JOB_POINT_SCALE = 8
-
-
-def _memory_class_auto(prod_catg_cd: str) -> str:
-    # (x or "") like the office adapter: prod_catg_cd is R3-only, so an M-fab
-    # lot can arrive with None and a bare .upper() would AttributeError.
-    c = (prod_catg_cd or "").upper()
-    if c == "DRAM":
-        return "DRAM"
-    if c in ("NAND", "FLASH"):
-        return "NAND"
-    return "unknown"  # Tech / Advanced / absent → 수동 (D7)
 
 
 # Dummy·Align 이 붙는 recipe 비율. rng 가 아니라 이름 digest 로 고르므로 이 값을
@@ -365,7 +350,8 @@ def _build_recipe(
     lot_cd: str,
     fac_id: str,
     prod_catg_cd: str,
-    idx: int
+    idx: int,
+    axes: DescAxes | None,
 ) -> RecipeParamsRow:
     # recipe_class 는 굴리지 않고 **recipe 이름에서 파생**합니다 — 실물도 그렇고
     # (office_example.py: "only_sample 버킷과 같은 규칙"), 굴리면 같은 recipe 가
@@ -373,8 +359,6 @@ def _build_recipe(
     recipe_class: Literal["Main", "Sample"] = (
         "Sample" if is_sample_recipe(identity["recipe_id"]) else "Main"
     )
-    family = rng.choice(FAMILIES)
-    phase = rng.choice(PHASES)
     bloated = rng.random() < 0.08       # ~8% of recipes over-parameterized
     # 1% 입니다(예전 5%). 16 point 를 넘는 파라미터가 있는 recipe 는 전체의 3%
     # 뿐이고 그 대부분은 아래 exempt_job 이므로(user-confirmed 2026-08-10),
@@ -408,9 +392,12 @@ def _build_recipe(
         "ctn_desc": identity["step_ctn_desc"],
         "prod_catg_cd": prod_catg_cd,
         "recipe_class": recipe_class,
-        "family": family,
-        "phase": phase,
-        "memory_class_auto": _memory_class_auto(prod_catg_cd),
+        # family·phase·memory 는 device description 의 앞 괄호에서 파생합니다 —
+        # office 와 같은 desc_format.parse_device_desc 입니다. 괄호가 없는 합의
+        # 이전 포맷이면 None 이고 프론트가 룰 미정(Gray)으로 판정합니다.
+        "family": axes["family"] if axes else None,
+        "phase": axes["phase"] if axes else None,
+        "memory_class_auto": axes["memory_class"] if axes else "unknown",
         "parameters": parameters,
     }
 
@@ -437,8 +424,9 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
     Empty / None lot_cds → every known lot (can be large; callers should pass a
     selection). Deterministic per lot_cd via _seed_for."""
     from .statistics import (  # deferred import
-        DEFAULT_TREND_POINTS, _lot_index, _resolve_lots, _seed_for,
+        DEFAULT_TREND_POINTS, _lot_ctn_desc, _lot_index, _resolve_lots, _seed_for,
     )
+    descs = _lot_ctn_desc()
     index = _lot_index()
     selected = _resolve_lots(lot_cds)
 
@@ -446,6 +434,7 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
     for lot_cd in selected:
         fac_id = index[lot_cd]
         prod_catg_cd = _prod_catg_for(lot_cd, fac_id)
+        axes = parse_device_desc(descs.get(lot_cd))
         # recipe-statistics 가 보여주는 것은 트렌드의 **마지막 주차**이므로
         # (routes.py recipe_statistics), 같은 주차의 모집단을 부릅니다. 이 한 줄이
         # 두 표면을 recipe_id 로 조인 가능하게 만듭니다.
@@ -462,7 +451,7 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
             # 중복도 **일단 만듭니다.** 건너뛰면 rng 호출 수가 줄어 뒤따르는 recipe 의
             # 파라미터가 전부 다른 값으로 태어납니다 (_MOTHER_MARK_SALT 주석과 같은
             # 이유). 버리는 것은 만든 다음입니다.
-            row = _build_recipe(rng, mother_rng, identity, lot_cd, fac_id, prod_catg_cd, idx)
+            row = _build_recipe(rng, mother_rng, identity, lot_cd, fac_id, prod_catg_cd, idx, axes)
             if row["recipe_id"] in seen:
                 continue
             seen.add(row["recipe_id"])

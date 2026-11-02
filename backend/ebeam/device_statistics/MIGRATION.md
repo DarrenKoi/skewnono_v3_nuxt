@@ -255,8 +255,8 @@ docstring.
       ctn_desc: str
       prod_catg_cd: str
       recipe_class: Literal["Main", "Sample"]
-      family: Literal["Core", "Pool", "VG_RTC_Cubic"]
-      phase: Literal["t-EV", "EV", "TV", "PV"] | None
+      family: Literal["Core", "Pool", "Other"] | None   # None = 표준 포맷 아님 → Gray
+      phase: Literal["EV", "tEV", "DTV", "TTV", "TV", "PV"] | None
       memory_class_auto: Literal["DRAM", "NAND", "unknown"]
       parameters: list[ParameterRow]
   ```
@@ -314,9 +314,8 @@ docstring.
   class Selector(TypedDict, total=False):
       fab: str                                    # required (see SelectorBase)
       recipe_class: Literal["Main", "Sample"]      # required (see SelectorBase)
-      family: Literal["Core", "Pool", "VG_RTC_Cubic"]
+      family: Literal["Core", "Pool", "Other"]
       phase_in: list[str]
-      yield_check: Literal["before", "after"]
       memory_class: Literal["DRAM", "NAND"]
 
   class RuleCell(TypedDict):
@@ -343,15 +342,20 @@ docstring.
   `total=False` for the remaining optional keying axes — see
   `contracts.py` for the exact split.)
 - Mock behavior: a single seeded rule version for fab `"R3"` only
-  (`version: 1`) covering the full family × (phase | yield_check) ×
-  memory_class matrix for `Main` recipes plus `Sample` rules keyed by
-  memory_class. Any other `fab` value returns `None`. **Backend serves raw
+  (`version: 1`): six rows (Core early DRAM/NAND, Core TV·PV, Pool제
+  DRAM/NAND, Other) each emitted once for `Main` and once for `Sample`
+  (same WAFER/LEVEL/EDGE/EDGE_EX, `_other` 9 vs 0). Every cell names a
+  `family`, so a recipe whose device description is not in the agreed
+  `[phase / memory] …` format (`family: None`) matches nothing and is gray.
+  Any other `fab` value returns `None`. **Backend serves raw
   rule cells only** — violation judgment and traffic-light coloring are
   computed client-side by the frontend's `ruleEngine.ts` (§8-bis
   principle); this endpoint never evaluates or filters against real
   parameter data. Cell match order matters: `r3-sample-core-tvpv` must
   precede the general `r3-sample-dram`/`r3-sample-nand` cells so the
-  frontend's first-match selection picks the more specific cell.
+  frontend's first-match selection picks the more specific cell — today no
+  two cells of one recipe_class overlap, so order only fixes the matrix
+  layout.
 - Office data source: **none — the office adapter returns the same in-code
   seed (`providers/rules.py`) as the mock.** In-app rule editing will not be
   built (decided 2026-08-04): rule changes are made by editing `rules.py`
@@ -370,10 +374,11 @@ docstring.
      the current adapter this can only be a **stale `office.py`** still
      reading the discarded Redis hash. Refresh it:
      `python -m scripts.adapters.sync_office_adapters device_statistics`.
-  2. Rules load but every recipe falls out as gray (e.g. `phase` is
-     null because real device `ctn_desc` strings don't carry parseable
-     EV/TV/PV tokens, or `memory_class` is unknown and Pool lots lack a
-     `yield_check` annotation). The tooltip lists the per-reason gray
+  2. Rules load but every recipe falls out as gray — the device `ctn_desc`
+     is not in the agreed `[phase / DRAM|NAND|기타] …` format (reason
+     "description 포맷 미준수"; the stage chip shows `?`). Check the raw
+     string for full-width `［／］` before suspecting the parser
+     (`desc_format.py`). The tooltip lists the per-reason gray
      counts ("룰은 있으나 전 recipe 가 판정에서 제외 — …") so the blocking
      derivation can be identified on the spot.
 

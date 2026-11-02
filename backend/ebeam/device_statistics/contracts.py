@@ -189,8 +189,10 @@ class RecipeParamsRow(TypedDict):
     ctn_desc: str
     prod_catg_cd: str
     recipe_class: Literal["Main", "Sample"]
-    family: Literal["Core", "Pool", "VG_RTC_Cubic"]
-    phase: Literal["t-EV", "EV", "TV", "PV"] | None
+    # desc_format.parse_device_desc 의 축. family=None 은 device description 이
+    # 표준 포맷(``[phase / memory] …``)이 아니라는 뜻이고 룰 미정(Gray)으로 판정됩니다.
+    family: Literal["Core", "Pool", "Other"] | None
+    phase: Literal["EV", "tEV", "DTV", "TTV", "TV", "PV"] | None
     memory_class_auto: Literal["DRAM", "NAND", "unknown"]
     parameters: list[ParameterRow]
 
@@ -210,9 +212,8 @@ class SelectorBase(TypedDict):
 
 
 class Selector(SelectorBase, total=False):
-    family: Literal["Core", "Pool", "VG_RTC_Cubic"]
+    family: Literal["Core", "Pool", "Other"]
     phase_in: list[str]
-    yield_check: Literal["before", "after"]
     memory_class: Literal["DRAM", "NAND"]
 
 

@@ -133,7 +133,12 @@ VG_TOKENS = ["Vertical Gate", "VerticalGate", "Vertical", "VG", "RTC", "Cubic"]
 
 
 def _dev_ctn_desc(rng: random.Random, phase: str, head: str, tail: str) -> str:
-    """device 설명문 한 줄.
+    """device 설명문 한 줄 — **합의 이전(옛) 포맷**입니다.
+
+    M fab device 는 이것을 그대로 쓰고, R3 는 ``_std_r3_ctn_desc`` 가 일부(전환기
+    몫)만 이 문자열을 남기고 나머지를 표준 포맷으로 바꿉니다. 이 옛 포맷은 룰
+    판정에서 미준수(Gray)입니다 — 아래 VG/Pool 우선순위 설명은 2026-11-02 이전의
+    룰을 위한 것이고, 지금은 rng 소비 순서를 지키기 위해 남아 있습니다.
 
     세 제품군을 실물 비율에 가깝게 섞습니다 — **VG > Pool > Core** 우선순위가
     집에서 실제로 실행되도록.
@@ -163,6 +168,54 @@ def _dev_ctn_desc(rng: random.Random, phase: str, head: str, tail: str) -> str:
         return f"{head} {pool} (@{code} {phase}) {tail}"
 
     return f"{phase} {head} {tail}"
+# ── R3 description 표준 포맷 (user-confirmed 2026-11-02) ─────────────────────
+# ``[(개발 phase) / (DRAM|NAND|기타)] (Tech 이름) (개발 phase) (Cell/Peri)``.
+# 룰 축은 앞 괄호에서만 읽습니다(``desc_format.parse_device_desc``). 아래
+# 어휘는 합의 문서의 예시에서 그대로 가져왔습니다.
+STD_CORE_PHASES = ["EV", "tEV", "DTV", "TTV", "TV", "PV"]
+# Core 가 아닌 괄호 phase. RTC·요소기술 은 예시에 있고 Cubic 은 룰 문장에 있습니다.
+STD_NONCORE_PHASES = ["RTC", "요소기술", "Cubic"]
+# 예시에 "Cell&PEri" 오타가 그대로 있습니다 — 사람이 쓰는 칸이라 표기가 흔들립니다.
+STD_WAFER_KINDS = ["Cell", "Peri", "Cell&Peri", "Cell&PEri", "CellDummy", "PeriDummy"]
+# Tech 이름이 없으면 과제 설명을 씁니다(예: "SSL Cut").
+STD_TASK_DESCS = ["SSL Cut", "DPEX", "AI-N B"]
+# 합의 포맷으로 아직 안 바뀐 device 비율. 전환기라 섞여 있고, 이들은 룰 미정
+# (Gray)으로 판정됩니다. OFFICE-VERIFY: 실제 전환 속도는 모릅니다.
+STD_LEGACY_SHARE = 0.15
+_STD_MEMORY = {"DRAM": "DRAM", "NAND": "NAND", "FLASH": "NAND"}
+# Tech/Advanced(prod_catg_cd)는 메모리를 말해 주지 않습니다. 괄호에는 DRAM/NAND 가
+# 대부분이고 "기타"(예: SC-MRAM)는 소수라고 보았습니다. OFFICE-VERIFY: 비율 미확인.
+STD_OTHER_MEMORY_SHARE = 0.25
+
+
+def _std_r3_ctn_desc(lot_cd: str, prod_catg_cd: str, tech_cd: str, legacy: str) -> str:
+    """합의 포맷 device 설명문. 전환기라 일부는 ``legacy`` 를 그대로 냅니다.
+
+    rng 는 lot_cd 로 따로 씨를 뿌립니다 — 생성기 공용 rng 를 더 굴리면 뒤따르는
+    lot 의 다른 컬럼이 전부 다시 굴려집니다.
+    """
+    rng = random.Random(f"std-desc:{lot_cd}")
+    if rng.random() < STD_LEGACY_SHARE:
+        return legacy
+    memory = _STD_MEMORY.get(prod_catg_cd) or (
+        "기타" if rng.random() < STD_OTHER_MEMORY_SHARE else rng.choice(["DRAM", "NAND"])
+    )
+    roll = rng.random()
+    if roll < 0.2:
+        head = "Pool제"
+    elif roll < 0.32:
+        head = rng.choice(STD_NONCORE_PHASES)
+    else:
+        head = rng.choice(STD_CORE_PHASES)
+    # 본문 phase 는 대개 괄호와 같지만 다를 때도 있습니다("[TV / DRAM] Spica
+    # DPEX PV Peri"). Pool제 는 본문에 개발 phase 를 씁니다("Petra PV").
+    body = head if head in STD_CORE_PHASES or head in STD_NONCORE_PHASES else rng.choice(STD_CORE_PHASES)
+    if head in STD_CORE_PHASES and rng.random() < 0.1:
+        body = rng.choice(STD_CORE_PHASES)
+    tech = tech_cd if tech_cd and rng.random() < 0.85 else rng.choice(STD_TASK_DESCS)
+    return f"[{head} / {memory}] {tech} {body} {rng.choice(STD_WAFER_KINDS)}"
+
+
 BASE_TIME = datetime(2026, 4, 1, 12, 0, 0, tzinfo=timezone.utc)
 BASE36_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -221,10 +274,13 @@ def _generate_r3_device_grp() -> tuple[R3DeviceGrpRow, ...]:
             "lot_cd": lot_cd,
             "plan_grade_cd": rng.choice(PLAN_GRADE_CODES),
             "lake_load_tm": timestamp.strftime("%Y%m%d%H%M%S"),
-            "ctn_desc": _dev_ctn_desc(
-                rng, phase,
-                f"{prod_catg_cd} {tech_cd or 'NA'} {den_type or 'GEN'}",
-                f"development lot {lot_cd}",
+            "ctn_desc": _std_r3_ctn_desc(
+                lot_cd, prod_catg_cd, tech_cd,
+                _dev_ctn_desc(
+                    rng, phase,
+                    f"{prod_catg_cd} {tech_cd or 'NA'} {den_type or 'GEN'}",
+                    f"development lot {lot_cd}",
+                ),
             )
         })
 

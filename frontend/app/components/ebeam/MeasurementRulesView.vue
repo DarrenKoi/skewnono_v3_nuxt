@@ -111,13 +111,13 @@ const text = {
   title: '계측 룰',
   subtitle: 'R3 계측 파라미터 cap 정책과 준수 결과를 확인합니다.',
   mainTitle: 'Main 룰',
-  mainHint: '칸 = 최대 측정 포인트 수(cap, ≤) · EV = EV 포함 이전 · TV = TV 포함 이후',
+  mainHint: '칸 = 최대 측정 포인트 수(cap, ≤) · EV = EV·tEV·DTV·TTV · TV = TV·PV · 축은 device description 앞 괄호 [phase / memory]',
   fixedLead: '고정 cap',
   fixedNote: '모든 룰 공통 · 변경 없음',
   legendLead: '범례',
   legendCap: '상한',
   legendZero: '측정 금지',
-  legendExpanded: 'EDGE·EDGE_EX 확대 (TV 포함 이후 · 수율 후)',
+  legendExpanded: 'EDGE_EX 허용 (Core TV 포함 이후 · Pool제)',
   loading: '로딩 중',
   loadError: '룰을 불러오지 못했습니다.'
 } as const

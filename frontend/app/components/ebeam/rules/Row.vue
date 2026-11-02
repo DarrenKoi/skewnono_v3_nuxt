@@ -40,7 +40,7 @@ import { capValue, isExpandedCell, memoryOf, vehicleLabel } from '~/utils/ruleMa
 
 // One rule cell as a matrix row (D13). The family header lives in the group
 // header (Matrix); this row carries the vehicle/yield axis + memory pill.
-// Expanded cells (TV 포함 이후 · 수율 후) highlight their EDGE/EDGE_EX caps.
+// Expanded cells (Core TV 포함 이후 · Pool제) highlight their EDGE/EDGE_EX caps.
 // The trailing empty <td> pairs with Matrix's spacer <col>: it absorbs the
 // slack so the caps sit beside their row label instead of ~600px away.
 const props = defineProps<{

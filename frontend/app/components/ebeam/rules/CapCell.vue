@@ -14,7 +14,7 @@
 //   undefined → "—" (type not applicable to this cell)
 //   0         → measurement forbidden (EDGE_EX 0)
 //   n         → upper bound
-// emphasis marks caps opened up beyond the EV baseline (TV 포함 이후 · 수율 후);
+// emphasis marks caps opened up beyond the EV baseline (Core TV 포함 이후 · Pool제);
 // it only tints positive caps — 0/— keep their own meaning.
 //
 // A cap is a data value, so DESIGN.md's "values are ink" rule holds in every

@@ -18,13 +18,10 @@ surface from `device_statistics.data` (the provider switch), not this file
 directly.
 """
 
-from typing import Literal
-
 from backend.ebeam.device_statistics.contracts import (
     NameOverride,
     RuleCell,
     RuleVersion,
-    Selector,
     Thresholds,
 )
 
@@ -73,84 +70,53 @@ _SAMPLE_OVERRIDES: list[NameOverride] = [
 # D16 — fab-level 신호등 경계 seed 기본값. 편집 가능하되 거의 안 바꿈(D18).
 _SEED_THRESHOLDS: Thresholds = {"yellow_at": 0.1, "red_at": 0.2}
 
-# D8 — 모든 Main 셀 공통 cap (WAFER/LEVEL/_other). EDGE/EDGE_EX 만 셀별로 다름.
-_MAIN_COMMON = {"WAFER": 13, "LEVEL": 4, "_other": 9}
+def _cells(cell_id: str, axes: dict, edge: int, edge_ex: int) -> list[RuleCell]:
+    """한 행 = Main 셀 + Sample 셀. Sample 은 WAFER 파라 cap 을 Main 과 똑같이 따르고
+    기타 파라는 0 입니다 — 추가는 가능하나 사유가 있어야 하므로 위반으로 드러냅니다
+    (user-confirmed 2026-11-02)."""
+    f = "R3"
+    wafer = {"WAFER": 13, "LEVEL": 4, "EDGE": edge, "EDGE_EX": edge_ex}
+    return [
+        {
+            "id": f"r3-{cell_id}",
+            "selector": {"fac_id": f, "recipe_class": "Main", **axes},
+            "caps": {**wafer, "_other": 9},
+            "name_overrides": list(_MAIN_OVERRIDES),
+        },
+        {
+            "id": f"r3-sample-{cell_id}",
+            "selector": {"fac_id": f, "recipe_class": "Sample", **axes},
+            "caps": {**wafer, "_other": 0},
+            "name_overrides": list(_SAMPLE_OVERRIDES),
+        },
+    ]
 
 
-def _main_cell(cell_id: str, selector: Selector, edge: int, edge_ex: int) -> RuleCell:
-    return {
-        "id": cell_id,
-        "selector": selector,
-        "caps": {**_MAIN_COMMON, "EDGE": edge, "EDGE_EX": edge_ex},
-        "name_overrides": list(_MAIN_OVERRIDES),
-    }
-
-
-def _sample_cell(cell_id: str, fac_id: str, memory_class: Literal["DRAM", "NAND"], edge: int) -> RuleCell:
-    return {
-        "id": cell_id,
-        "selector": {"fac_id": fac_id, "recipe_class": "Sample", "memory_class": memory_class},
-        "caps": {"WAFER": 13, "LEVEL": 4, "EDGE": edge, "EDGE_EX": 0, "_other": 0},
-        "name_overrides": list(_SAMPLE_OVERRIDES),
-    }
+_CORE_EARLY = ["EV", "tEV", "DTV", "TTV"]
 
 
 def _r3_cells() -> list[RuleCell]:
-    """R3(개발) — family × (phase | yield_check) × memory_class 풀 매트릭스 (D8)."""
-    f = "R3"
+    """R3(개발) 룰 표 — description 표준 포맷 기준 (user-confirmed 2026-11-02).
+
+    family·phase·memory_class 는 device description 앞 괄호에서 파생합니다
+    (``desc_format.parse_device_desc``). 괄호가 없는 합의 이전 포맷은 family 가
+    None 이고, 모든 셀이 family 를 키로 가지므로 어느 셀에도 안 맞아 Gray-A
+    (룰 미정)가 됩니다.
+
+    - Core — EV·tEV·DTV·TTV 는 DRAM 10 / NAND 8 · EDGE_EX 0, **TV 부터** 16/16
+      (memory 분기 없음). DTV·TTV 는 EV 급입니다(user-confirmed 2026-11-02).
+    - Pool제 — 예전의 수율 확인 전/후 구분을 없애고 **후 기준으로 통합**:
+      DRAM 10/10, NAND 8/8. yield_check 축은 폐기.
+    - Other — RTC·Cubic·요소기술·메모리 기타 등 Core 가 아닌 전부. RTC 룰
+      EDGE 10 / EDGE_EX 0, memory·phase 분기 없음.
+    """
     return [
-        # Core — phase 로 키잉 (t-EV·EV vs TV·PV)
-        _main_cell("r3-core-early-dram",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Core",
-                    "phase_in": ["t-EV", "EV"], "memory_class": "DRAM"}, edge=10, edge_ex=0),
-        _main_cell("r3-core-early-nand",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Core",
-                    "phase_in": ["t-EV", "EV"], "memory_class": "NAND"}, edge=8, edge_ex=0),
-        # TV·PV 는 EDGE 16 고정 — memory_class 분기 없음 (D8)
-        _main_cell("r3-core-tvpv",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Core",
-                    "phase_in": ["TV", "PV"]}, edge=16, edge_ex=16),
-        # Pool — yield_check 로 키잉, phase 무시 (D8). 여기 셀에 phase_in 을
-        # 달면 안 되는 것은 물론이고, family 없는 phase 셀도 Pool recipe 를
-        # 주장하지 못합니다 — ruleEngine.ts 의 selectorMatches 가 막습니다.
-        _main_cell("r3-pool-before-dram",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
-                    "yield_check": "before", "memory_class": "DRAM"}, edge=10, edge_ex=0),
-        _main_cell("r3-pool-before-nand",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
-                    "yield_check": "before", "memory_class": "NAND"}, edge=8, edge_ex=0),
-        _main_cell("r3-pool-after-dram",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
-                    "yield_check": "after", "memory_class": "DRAM"}, edge=10, edge_ex=10),
-        _main_cell("r3-pool-after-nand",
-                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
-                    "yield_check": "after", "memory_class": "NAND"}, edge=8, edge_ex=8),
-        # VG·RTC·Cubic — 잠정 DRAM-side/Core 차용 (D7). 자체 cap 분기는 추후.
-        # memory_class 생략: VG 는 항상 DRAM-side 라 EDGE 분기 불필요(ruleEngine 가
-        # family=VG → memory_class DRAM 으로 환원하므로 Gray-B 도 안 남).
-        #
-        # phase 도 키잉하지 않습니다 (user-confirmed 2026-08-25). VG device 는
-        # 보통 ctn_desc 에 t-EV/EV/TV/PV 표현 자체가 없어서, 예전처럼 셀을
-        # phase 로 쪼개 두면 phase=None 인 VG 가 어느 셀에도 안 맞아 통째로
-        # Gray-A(룰 미정)로 빠집니다. 한 셀로 합치고 값은 보수적인 쪽
-        # (EDGE 10 / EDGE_EX 0)을 씁니다 — 예전 r3-vg-tvpv 의 16/16 상향은
-        # 그래서 사라졌습니다. VG 전용 cap 을 정하면 여기만 고치면 됩니다.
-        _main_cell("r3-vg",
-                   {"fac_id": f, "recipe_class": "Main", "family": "VG_RTC_Cubic"},
-                   edge=10, edge_ex=0),
-        # Sample — fab 공통, memory_class 로 분기 (D2·D6).
-        # D19: Core TV·PV 만 EDGE 16 으로 상향 (ground_rules.txt L40). memory-blind
-        # (Main Core TV·PV 와 동일하게 분기 없음). 일반 Sample 셀보다 **먼저** 둬야
-        # ruleEngine 의 first-match 가 이 specific 셀을 고른다 (phase-blind 셀이
-        # 앞서면 EDGE 10/8 로 잡혀 D19 가 무력화됨).
-        {
-            "id": "r3-sample-core-tvpv",
-            "selector": {"fac_id": f, "recipe_class": "Sample", "family": "Core", "phase_in": ["TV", "PV"]},
-            "caps": {"WAFER": 13, "LEVEL": 4, "EDGE": 16, "EDGE_EX": 0, "_other": 0},
-            "name_overrides": list(_SAMPLE_OVERRIDES),
-        },
-        _sample_cell("r3-sample-dram", f, "DRAM", edge=10),
-        _sample_cell("r3-sample-nand", f, "NAND", edge=8),
+        *_cells("core-early-dram", {"family": "Core", "phase_in": _CORE_EARLY, "memory_class": "DRAM"}, 10, 0),
+        *_cells("core-early-nand", {"family": "Core", "phase_in": _CORE_EARLY, "memory_class": "NAND"}, 8, 0),
+        *_cells("core-tvpv", {"family": "Core", "phase_in": ["TV", "PV"]}, 16, 16),
+        *_cells("pool-dram", {"family": "Pool", "memory_class": "DRAM"}, 10, 10),
+        *_cells("pool-nand", {"family": "Pool", "memory_class": "NAND"}, 8, 8),
+        *_cells("other", {"family": "Other"}, 10, 0),
     ]
 
 

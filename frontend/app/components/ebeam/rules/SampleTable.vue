@@ -114,8 +114,7 @@ const rows = computed<SampleRow[]>(() =>
       const label = [family, vehicle.main].filter(Boolean).join(' · ') || '기본'
       return { cell, label, hint: vehicle.hint, memory: memoryOf(cell), expanded: isExpandedCell(cell) }
     })
-    // stable sort: 기본 셀 먼저, phase-keyed 상향 예외는 마지막
-    .sort((a, b) => Number(a.expanded) - Number(b.expanded))
+  // seed 순서 그대로 — rules.py 가 Main 과 같은 순서(Core → Pool제 → 기타)로 냅니다.
 )
 
 const overrides = computed(() => collectOverrides(props.cells ?? []))

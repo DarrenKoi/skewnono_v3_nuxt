@@ -33,36 +33,30 @@ export const fixedCaps = (cells: RuleCell[]): FixedCap[] => {
 
 const FAMILY_LABEL: Record<string, string> = {
   Core: 'Core',
-  Pool: 'Pool',
-  VG_RTC_Cubic: 'VG·RTC·Cubic'
+  Pool: 'Pool제',
+  Other: '기타 (RTC 룰)'
 }
 
-export const familyLabel = (family?: string): string =>
+export const familyLabel = (family?: string | null): string =>
   family ? (FAMILY_LABEL[family] ?? family) : ''
 
 export interface VehicleLabel { main: string, hint?: string }
 
 /** The secondary keying axis, collapsed for display: phase sets show as just
- * EV/TV ("EV 포함 이전" · "TV 포함 이후"); Pool keeps its yield split. */
+ * EV/TV ("EV·tEV·DTV·TTV" · "TV 포함 이후"). */
 export const vehicleLabel = (cell: RuleCell): VehicleLabel => {
   const s = cell.selector
   if (s.phase_in && s.phase_in.length > 0) {
     return s.phase_in.includes('TV') || s.phase_in.includes('PV')
       ? { main: 'TV', hint: '포함 이후' }
-      : { main: 'EV', hint: '포함 이전' }
+      : { main: 'EV', hint: s.phase_in.join('·') }
   }
-  if (s.yield_check) return { main: s.yield_check === 'before' ? '수율 전' : '수율 후' }
   return { main: '' }
 }
 
-/** Cells whose EDGE/EDGE_EX caps open up beyond the EV baseline (TV 포함 이후,
- * Pool 수율 후) — the matrix highlights these, since that is the whole point
- * of the phase split. */
-export const isExpandedCell = (cell: RuleCell): boolean => {
-  const s = cell.selector
-  if (s.phase_in?.some(p => p === 'TV' || p === 'PV')) return true
-  return s.yield_check === 'after'
-}
+/** Cells whose EDGE_EX cap opens up beyond the EV baseline (Core TV 포함 이후,
+ * Pool제) — the matrix highlights these. */
+export const isExpandedCell = (cell: RuleCell): boolean => (cell.caps?.EDGE_EX ?? 0) > 0
 
 export const memoryOf = (cell: RuleCell): 'DRAM' | 'NAND' | null =>
   cell.selector.memory_class ?? null

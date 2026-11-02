@@ -6,8 +6,9 @@
 // =================== Types (rule-editor-structure.md §2) ===================
 
 export type RecipeClass = 'Main' | 'Sample'
-export type Family = 'Core' | 'Pool' | 'VG_RTC_Cubic'
-export type Phase = 't-EV' | 'EV' | 'TV' | 'PV'
+/** backend `desc_format.parse_device_desc` 의 축 (user-confirmed 2026-11-02). Other = RTC 룰. */
+export type Family = 'Core' | 'Pool' | 'Other'
+export type Phase = 'EV' | 'tEV' | 'DTV' | 'TTV' | 'TV' | 'PV'
 export type MemoryClass = 'DRAM' | 'NAND'
 export type ParamType = 'WAFER' | 'LEVEL' | 'EDGE' | 'EDGE_EX' | 'OTHER'
 
@@ -27,7 +28,6 @@ export interface RuleCell {
     recipe_class: RecipeClass
     family?: Family
     phase_in?: Phase[] // Core keys on this (D8)
-    yield_check?: 'before' | 'after' // Pool keys on this (D8)
     memory_class?: MemoryClass // only EDGE/EDGE_EX-split cells (D11)
   }
   caps: CapMap
@@ -71,7 +71,8 @@ export interface RecipeInput {
   ctn_desc: string
   prod_catg_cd: string
   recipe_class: RecipeClass
-  family: Family
+  /** null = device description 이 표준 포맷 `[phase / memory] …` 이 아님 → 룰 미정. */
+  family: Family | null
   phase: Phase | null
   memory_class_auto: MemoryClass | 'unknown'
   parameters: Parameter[]
@@ -80,7 +81,6 @@ export interface RecipeInput {
 /** Manual per-lot annotation (annotations dataset, D4/D7). */
 export interface Annotation {
   memory_class?: MemoryClass | null
-  yield_check?: 'before' | 'after' | null
 }
 
 // =================== Derivation (D3 / D7 / D10) ===================
@@ -313,29 +313,29 @@ export const explainCap = (
 
 /**
  * `memory_class` 가 어디서 왔는가. `applyAnnotation` 의 `??` 사슬 순서 그대로입니다
- * — 어노테이션, backend 자동 파생, VG·RTC·Cubic 의 잠정 DRAM 환원(D7).
+ * — description 괄호(auto)가 먼저, 어노테이션은 괄호가 기타일 때만.
  */
-export type MemoryClassOrigin = 'annotation' | 'auto' | 'family'
+export type MemoryClassOrigin = 'auto' | 'annotation'
 
 export interface MergedRecipe extends Omit<RecipeInput, 'memory_class_auto'> {
   memory_class: MemoryClass | null
   /** `memory_class` 가 null 이면 null. */
   memory_class_origin: MemoryClassOrigin | null
-  yield_check: 'before' | 'after' | null
 }
 
-/** Merge manual annotation over backend-derived values (D4/D7). */
+/**
+ * Merge manual annotation under backend-derived values. description 괄호의
+ * memory 가 기준이고(user-confirmed 2026-11-02), 어노테이션은 그것이 비었을 때만
+ * 채웁니다.
+ */
 export const applyAnnotation = (recipe: RecipeInput, ann?: Annotation): MergedRecipe => {
   const auto = recipe.memory_class_auto === 'unknown' ? null : recipe.memory_class_auto
   const { memory_class_auto: _omit, ...rest } = recipe
-  // D7 — VG·RTC·Cubic provisionally reduces to DRAM-side when no explicit class
-  // is set (manual annotation still wins; backend auto-derivation still wins).
-  const vgFallback = rest.family === 'VG_RTC_Cubic' ? 'DRAM' : null
+  const memory_class = auto ?? ann?.memory_class ?? null
   return {
     ...rest,
-    memory_class: ann?.memory_class ?? auto ?? vgFallback,
-    memory_class_origin: ann?.memory_class ? 'annotation' : auto ? 'auto' : vgFallback ? 'family' : null,
-    yield_check: ann?.yield_check ?? null
+    memory_class,
+    memory_class_origin: auto ? 'auto' : memory_class ? 'annotation' : null
   }
 }
 
@@ -344,26 +344,13 @@ const selectorMatches = (cell: RuleCell, r: MergedRecipe): boolean => {
   if (s.fac_id !== r.fac_id) return false // D15 — fab is a real axis
   if (s.recipe_class !== r.recipe_class) return false
   if (s.family != null && s.family !== r.family) return false
-  // D3 — Pool 은 phase 를 이깁니다. ctn_desc 에 Pool 과 phase 가 함께 들어 있는
-  // device 가 실제로 있고("DRAM Pool제 (@Spica PV)", user-confirmed 2026-08-25),
-  // 그때 판정 기준은 Pool 입니다. phase 값 자체는 payload 에 그대로 남기고
-  // (Pool 제품도 t-EV→PV 를 거치므로 — CONTEXT.md §Product Family), 여기 판정에서만
-  // 무시합니다. Pool 은 오직 yield_check 로만 키잉됩니다(D8).
-  //
-  // 이 줄이 없으면 불변식이 룰 **데이터**에만 있습니다 — 지금 Pool cell 이 이기는
-  // 것은 `rules.py` 가 Pool cell 에 `phase_in` 을 안 달아 둔 덕이지 판정 로직이
-  // 아닙니다. `resolveRuleCell` 은 배열 첫 매칭을 집으므로, 나중에 누가 family
-  // 없는 phase cell 을 seed 에 하나 끼워 넣으면 Pool recipe 의 EDGE_EX 상한이
-  // 0 에서 조용히 벌어집니다.
-  if (s.phase_in && r.family === 'Pool') return false
   if (s.phase_in && !(r.phase && s.phase_in.includes(r.phase))) return false
-  if (s.yield_check && s.yield_check !== r.yield_check) return false
   if (s.memory_class && s.memory_class !== r.memory_class) return false
   return true
 }
 
 /** Gray-B 에서 비어 있던 어노테이션 필드. 화면 문장은 이 값으로 만듭니다. */
-export type GrayField = 'memory_class' | 'yield_check'
+export type GrayField = 'memory_class'
 
 export type CellResolution
   = | { kind: 'cell', cell: RuleCell }
@@ -371,6 +358,8 @@ export type CellResolution
 
 /** D8 + D14 — find the cell, or classify why it's gray (A=룰미정, B=어노테이션미설정). */
 export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolution => {
+  // 합의 포맷이 아닌 description — 축을 모르므로 family 없는 셀에도 붙이지 않습니다.
+  if (r.family == null) return { kind: 'gray', gray: 'A', reason: 'description 포맷 미준수' }
   const byClassFam = cells.filter(
     c => c.selector.fac_id === r.fac_id // D15 — gray detection is fab-scoped
       && c.selector.recipe_class === r.recipe_class
@@ -380,9 +369,7 @@ export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolut
   if (match) return { kind: 'cell', cell: match }
 
   const needsMem = byClassFam.some(c => c.selector.memory_class) && r.memory_class == null
-  const needsYield = byClassFam.some(c => c.selector.yield_check) && r.yield_check == null
   if (needsMem) return { kind: 'gray', gray: 'B', reason: 'memory_class 미설정', field: 'memory_class' }
-  if (needsYield) return { kind: 'gray', gray: 'B', reason: 'yield_check 미설정', field: 'yield_check' }
   return { kind: 'gray', gray: 'A', reason: '룰 미정' }
 }
 

@@ -338,26 +338,22 @@ test('no-verdict lots sort last, red first', () => {
 
 // --- stage chip / row augmentation ---
 
-test('stage comes from the lot-level ctn_desc', () => {
-  assert.equal(extractStage('t-EV DRAM T1Y 1T development lot R000'), 'EV')
-  assert.equal(extractStage('Pool Tech C20 256G development lot R0A1'), 'Pool')
-  assert.equal(extractStage('PV NAND lot'), 'PV')
+// 칩은 device description 앞 괄호의 phase 를 그대로 보입니다 (user-confirmed
+// 2026-11-02). 룰 판정과 같은 칸을 읽어야 칩과 적용된 cap 이 어긋나지 않습니다.
+test('stage chip: description 앞 괄호의 phase', () => {
+  assert.equal(extractStage('[EV / DRAM] Cubit EV Cell&PEri'), 'EV')
+  assert.equal(extractStage('[Pool제 / NAND] Petra PV Peri'), 'Pool')
+  // 본문의 두 번째 phase(PV)가 아니라 괄호(TV)입니다.
+  assert.equal(extractStage('[TV / DRAM] Spica DPEX PV Peri'), 'TV')
+  assert.equal(extractStage('[tEV / NAND] X tEV Cell'), 'tEV')
+  assert.equal(extractStage('[RTC / DRAM] VIRGO RTC Cell&PEri'), 'RTC')
+  assert.equal(extractStage('[요소기술 / NAND] SSL Cut Cell'), '요소기술')
+})
+test('stage chip: 표준 포맷이 아니면 ? — 옛 토큰 추론을 하지 않는다', () => {
+  assert.equal(extractStage('DRAM Pool제 (@Spica PV)'), '?')
+  assert.equal(extractStage('PV NAND lot'), '?')
   assert.equal(extractStage(''), '?')
   assert.equal(extractStage(undefined), '?')
-})
-
-// Pool 과 phase 토큰은 한 ctn_desc 에 같이 옵니다 — "DRAM Pool제 (@Spica PV)"
-// (user-confirmed 2026-08-25). 칩은 Pool 을 따르고 phase 는 무시합니다.
-// 룰 판정(ruleEngine.selectorMatches)과 같은 우선순위여야, 화면 칩과 실제
-// 적용된 cap 이 서로 다른 것을 가리키지 않습니다.
-test('stage chip: Pool 이 phase 토큰을 이긴다', () => {
-  assert.equal(extractStage('DRAM Pool제 (@Spica PV)'), 'Pool')
-  assert.equal(extractStage('NAND Pool제 (@Vega TV) development lot R0A2'), 'Pool')
-  assert.equal(extractStage('Pool 풀제 t-EV lot'), 'Pool')
-  // office `_POOL_TOKEN` 과 같은 토큰 — 한글 "풀" 단독도 Pool 입니다.
-  assert.equal(extractStage('DRAM 풀 (@Rigel EV)'), 'Pool')
-  // Pool 이 없으면 phase 토큰이 그대로 이깁니다.
-  assert.equal(extractStage('PV NAND lot'), 'PV')
 })
 
 const summaryRow = (ctn_desc: string, para_16 = 10) => ({
@@ -369,7 +365,7 @@ const summaryRow = (ctn_desc: string, para_16 = 10) => ({
 })
 
 test('a row with no verdict still renders as no-verdict, not a crash', () => {
-  const row = augmentRow(summaryRow('EV lot'), undefined)
+  const row = augmentRow(summaryRow('[EV / DRAM] X EV Cell'), undefined)
   assert.equal(row.verdict.kind, 'no-rules')
   assert.equal(row.verdict.health, null)
   assert.equal(row.dev_stage, 'EV')
@@ -377,7 +373,7 @@ test('a row with no verdict still renders as no-verdict, not a crash', () => {
 })
 
 test('augmentRow preserves the original row fields', () => {
-  const row = augmentRow(summaryRow('Pool lot', 42), undefined)
+  const row = augmentRow(summaryRow('[Pool제 / DRAM] X PV Cell', 42), undefined)
   assert.equal(row.para_16, 42)
   assert.equal(row.dev_stage, 'Pool')
 })

@@ -74,7 +74,7 @@ interface RuleGroup {
 }
 
 // Group order is fixed so the matrix layout is stable regardless of cell order.
-const GROUP_ORDER = ['Core', 'Pool', 'VG_RTC_Cubic']
+const GROUP_ORDER = ['Core', 'Pool', 'Other']
 
 const groups = computed<RuleGroup[]>(() => {
   const byKey = new Map<string, RuleCell[]>()

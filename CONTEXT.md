@@ -69,34 +69,34 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 룰 셀의 키 축은 fab 에 따라 다릅니다:
 
-- **R3 (R&D)** — `recipe_class × [[product-family]] × (Core=[[phase]] | Pool=yield_check) × memory_class`. Sample 은 fab·축 무관 **고정 한 벌**.
+- **R3 (R&D)** — `recipe_class × [[product-family]] × (Core=[[phase]]) × memory_class`. 세 축 모두 device description 앞 괄호에서 옵니다(§Product Family). Sample 은 Main 과 같은 WAFER/LEVEL/EDGE/EDGE_EX cap 에 기타 파라 0 입니다(2026-11-02).
 - **M-fab (양산)** — `recipe_class × memory_class` (family·phase·Pool 없음). 의미는 "기대 분포"가 아니라 **이상감지 임계치**.
 
 룰은 코드 상수가 아니라 사용자가 입력·수정하는 도메인 객체이며, 룰을 벗어나는 정도가 [[lot-health-signal]]의 입력입니다. 상세 모델·결정은 `docs/issues/ground_rules/`(grilling-log · rule-editor-structure) 참조.
 
 **편집 권한과 위치**: 룰·어노테이션 편집은 **인증된 엔지니어 누구나** `device-statistics/measurement-rules` 페이지에서 수행하며, SSO 신원 추적 + 버전 이력 + rollback 으로 무결성을 확보합니다(ADR 0004 — ADR 0003 의 관리자 전용을 supersede). seed 룰은 `backend/ebeam/device_statistics/providers/rules.py` 에 있고, feature 밖에서는 `device_statistics.data` 의 `get_rules()` 로만 읽습니다. 앱 내 편집 저장(save/history/rollback)은 이후 **하지 않기로 결정**했습니다(grilling-log D12) — 룰은 그 파일을 직접 고쳐 배포하고 git 이력이 곧 버전 이력이며, office 어댑터도 같은 seed 를 반환합니다(user-confirmed 2026-08-04). 따라서 이 문단의 SSO 편집 권한 서술은 ADR 0004 당시의 계획이고 현재 구현이 아닙니다.
 
-### Product Family (Core / Pool제 / VG·RTC·Cubic)
+### Product Family (Core / Pool제 / 기타)
 
-개발 제품군 분류로, [[계측-룰]]을 가르는 축 중 하나. **backend 가 `ctn_desc` 문자열에서 파생**합니다:
+개발 제품군 분류로, [[계측-룰]]을 가르는 축 중 하나. **device description(`ctn_desc`) 앞 괄호에서 파생**합니다. 이 포맷은 2026-11-02 에 합의되었습니다(user-confirmed):
 
-- **Pool제** — `ctn_desc` 에 `"Pool"`/`"Pool제"` 포함.
-- **VG·RTC·Cubic** — `"Vertical Gate"`/`"Vertical"`/`"VG"`/`"RTC"`/`"Cubic"` 포함. 한 제품군인데 **표기가 여럿**이라 다섯을 모두 잡습니다(user-confirmed 2026-08-25). 단독 `VG`/`RTC`/`Cubic` 은 단어경계로 좁혀 `"AVG"`·`"VGA"` 같은 단어 안쪽 우연 일치를 거릅니다.
-- **Core** — 그 외 전부 (default).
+```text
+[(개발 phase) / (DRAM | NAND | 기타)] (Tech 이름) (개발 phase) (Cell/Peri)
+[EV / DRAM] Cubit EV Cell&PEri
+[Pool제 / NAND] Petra PV Peri
+[TV / 기타] SC-MRAM TV Cell&Peri
+```
 
-**우선순위 (다중 매치 시)**: 가장 구체적인 것 우선 → `VG·RTC·Cubic > Pool > Core`. VG 와 Pool 이 한 `ctn_desc` 에 같이 나오면 VG 가 이깁니다(user-confirmed 2026-08-25). 이 파생을 하는 곳은 office 어댑터의 `_family_of` **하나뿐**입니다 — 프런트에 있던 사본은 지웠습니다.
+- **Core** — 괄호 phase 가 EV·tEV·DTV·TTV·TV·PV 이고 메모리가 DRAM/NAND.
+- **Pool제** — 괄호 phase 가 `Pool제` 이고 메모리가 DRAM/NAND. 예전의 수율 확인 전/후(`yield_check`) 구분은 없어졌고 **후 기준으로 통합**되었습니다.
+- **기타 (`Other`)** — 그 외 전부: RTC·Cubic·요소기술·메모리 `기타` 등. 모두 **RTC 룰** 하나를 따릅니다.
+- **미준수 (`null`)** — 괄호가 없는 합의 이전 포맷. 룰 미정(Gray)으로 판정하고 화면 칩은 `?` 입니다. 예전의 토큰 추론(`Pool`/`VG` 단어 찾기, `prod_catg_cd` 로 메모리 추정)으로 되돌아가지 않습니다.
 
-> ⚠️ 이전 모델은 "Pool제" 를 [[phase]] 의 한 값으로 다뤘으나(§Flagged ambiguities), Pool제는 **phase 와 직교하는 product family** 로 확정. Pool제 제품도 t-EV→PV phase 를 거칩니다.
+파생하는 곳은 `backend/ebeam/device_statistics/desc_format.py` **하나뿐**이고 office 어댑터와 mock 이 같이 씁니다. 화면의 단계 칩(`lotHealth.ts` `extractStage`)도 같은 괄호 칸을 읽습니다. 본문에 phase 가 한 번 더 나오는 이유와 Cell/Peri 꼬리의 쓰임은 아직 정해지지 않아 룰에 쓰지 않습니다.
 
-**Pool 은 판정에서 phase 를 이깁니다 (user-confirmed 2026-08-25)**: `ctn_desc` 에 Pool 토큰과 phase 토큰이 함께 들어 있는 device 가 실제로 있습니다 — 예: `"DRAM Pool제 (@Spica PV)"`. 두 축이 직교하므로 파생은 양쪽 다 합니다(`family=Pool`, `phase=PV`, payload 에도 그대로 실림). 그러나 **룰 셀을 고를 때는 Pool 을 따르고 phase 는 무시**합니다 — Pool 제품군은 phase 가 아니라 `yield_check` 로 키잉되기 때문입니다(D8). `TV` 와 겹칠 때도 같습니다. 이것은 `rules.py` 의 seed 가 Pool 셀에 `phase_in` 을 안 다는 관행이 아니라 **엔진의 불변식**입니다 — `ruleEngine.ts` 의 `selectorMatches` 가 `phase_in` 을 가진 셀은 Pool recipe 를 주장하지 못하게 막습니다. **화면의 개발단계 칩도 같은 우선순위**입니다(`lotHealth.ts` 의 `extractStage`) — 칩이 `PV` 인데 적용된 cap 은 Pool 룰인 상태가 없어야 합니다. 두 곳의 Pool 토큰은 office `_family_of` 의 `_POOL_TOKEN`(`pool|풀`)과 같은 것을 봅니다.
+### Phase (EV / tEV / DTV / TTV / TV / PV)
 
-### Phase (t-EV / EV / TV / PV)
-
-디바이스 개발 단계. [[product-family]]와 **직교**하는 룰 축 — 단, 판정에서는 Pool 이 phase 를 이깁니다(§Product Family). PV 는 양산 이관 직전으로 가장 중요. 룰은 종종 **"TV 이후"(TV + PV)** 를 한 묶음으로 다룹니다(예: Core 의 EDGE 16 증가). backend 가 `ctn_desc` 에서 추출(`PV`/`TV`/`EV`/`t-EV` 단어). 프런트는 파생된 컬럼을 소비만 합니다.
-
-**추출 실패 시 fallback**: phase 키워드가 없으면 *초기 개발 단계* 로 간주해 **가장 strict 한 룰(EV 급)** 을 적용 — 보수적 선택. UI 칩은 `[?]` 로 노출해 "fallback 적용 중" 을 tooltip 으로 부연, 데이터 품질 audit 가능성 유지.
-
-**VG·RTC·Cubic 은 phase 축을 쓰지 않습니다** (user-confirmed 2026-08-25): VG device 는 보통 `ctn_desc` 에 `t-EV`/`EV`/`TV`/`PV` 표현 자체가 없습니다. 그래서 `rules.py` 의 VG 셀은 phase 를 키잉하지 않는 **한 개**이고 값은 보수적인 쪽(`EDGE 10` / `EDGE_EX 0`)입니다 — phase 로 쪼개 두면 `phase=null` 인 VG 가 어느 셀에도 안 맞아 통째로 Gray-A 로 빠집니다. 예전 VG TV·PV 셀의 `16/16` 상향은 그래서 없어졌습니다. 반대로 "phase 표현이 없으면 VG 로 간주" 하는 역방향 추론은 **채택하지 않았습니다** — 위 `[?]` 의 데이터 품질 audit 신호가 사라지기 때문입니다.
+디바이스 개발 단계. Core 제품군에서만 룰 축입니다. 룰은 **"TV 이후"(TV + PV)** 를 한 묶음으로 다룹니다 — EDGE·EDGE_EX 16. EV·tEV·DTV·TTV 는 초기 단계 묶음입니다(DRAM EDGE 10 / NAND 8, EDGE_EX 0). PV 는 양산 이관 직전으로 가장 중요합니다. 괄호 phase 칸만 읽고 본문의 두 번째 phase 는 읽지 않습니다.
 
 **fab 적용 범위**: ground rule 의 family/phase 축은 *개발*(R3) 전용입니다. **양산 M-fab 은 family·phase·Pool 축이 없고** `recipe_class × memory_class` 로만 키잉됩니다(양산은 DRAM/NAND 로 분리되나 개발 단계 개념은 없음). 상세는 [[계측-룰]] 참조.
 

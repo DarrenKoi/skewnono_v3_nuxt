@@ -16,10 +16,10 @@ const main = (id: string, selector: Omit<RuleCell['selector'], 'fac_id' | 'recip
   caps: { WAFER: 13, LEVEL: 4, EDGE: edge, EDGE_EX: edgeEx, _other: 9 },
   name_overrides: [wfOverride]
 })
-const coreEarlyDram = main('r3-core-early-dram', { family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' }, 10, 0)
+const coreEarlyDram = main('r3-core-early-dram', { family: 'Core', phase_in: ['EV', 'tEV', 'DTV', 'TTV'], memory_class: 'DRAM' }, 10, 0)
 const coreTvPv = main('r3-core-tvpv', { family: 'Core', phase_in: ['TV', 'PV'] }, 16, 16)
-const poolBeforeDram = main('r3-pool-before-dram', { family: 'Pool', yield_check: 'before', memory_class: 'DRAM' }, 10, 0)
-const vg = main('r3-vg', { family: 'VG_RTC_Cubic' }, 10, 0)
+const poolDram = main('r3-pool-dram', { family: 'Pool', memory_class: 'DRAM' }, 10, 10)
+const other = main('r3-other', { family: 'Other' }, 10, 0)
 const sampleDram: RuleCell = {
   id: 'r3-sample-dram',
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' },
@@ -30,11 +30,11 @@ const sampleDram: RuleCell = {
     { patterns: ['ALIGN'], match: 'affix', cap: null }
   ]
 }
-const CELLS = [coreEarlyDram, coreTvPv, poolBeforeDram, vg, sampleDram]
+const CELLS = [coreEarlyDram, coreTvPv, poolDram, other, sampleDram]
 
 const recipe = (parameters: Parameter[], over: Partial<RecipeInput> = {}): RecipeInput => ({
   lot_cd: 'R000', recipe_id: 'RCP-1', fac_id: 'R3', ctn_desc: 'step', prod_catg_cd: 'DRAM',
-  recipe_class: 'Main', family: 'Core', phase: 't-EV', memory_class_auto: 'DRAM',
+  recipe_class: 'Main', family: 'Core', phase: 'tEV', memory_class_auto: 'DRAM',
   parameters, ...over
 })
 
@@ -58,8 +58,8 @@ test('_other fallback: 이름으로 타입을 못 정한 파라미터는 fallbac
   assert.equal(p.source_label, '_other fallback')
   assert.equal(p.over_by, 4)
   assert.equal(param(ex, 'WAFER_CD').source_label, '타입 cap')
-  assert.deepEqual(ex.cell, { kind: 'cell', id: 'r3-core-early-dram', summary: 'R3 · Main · Core · t-EV/EV · DRAM' })
-  assert.equal(ex.sentence, 'Core · t-EV · DRAM 으로 읽혀 r3-core-early-dram 셀이 적용됐고, CELL_SP 가 cap 9 를 4 초과했습니다.')
+  assert.deepEqual(ex.cell, { kind: 'cell', id: 'r3-core-early-dram', summary: 'R3 · Main · Core · EV/tEV/DTV/TTV · DRAM' })
+  assert.equal(ex.sentence, 'Core · tEV · DRAM 으로 읽혀 r3-core-early-dram 셀이 적용됐고, CELL_SP 가 cap 9 를 4 초과했습니다.')
 })
 
 test('이름 예외: 숫자를 주면 "이름 예외", null 을 주면 "면제" 입니다', () => {
@@ -76,7 +76,7 @@ test('이름 예외: 숫자를 주면 "이름 예외", null 을 주면 "면제" 
   assert.equal(dummy.over_by, null)
   assert.equal(result.pass, true)
   // Sample 셀은 family·phase 를 키로 쓰지 않으므로 입력 줄에도 문장 머리에도 없습니다.
-  assert.ok(!ex.input_rows.some(r => r.label === 'phase' || r.label === 'yield_check'))
+  assert.ok(!ex.input_rows.some(r => r.label === 'phase'))
   // 면제는 견줄 cap 이 없었던 것이라 "cap 이내" 라고 하지 않습니다.
   assert.equal(ex.sentence, 'Sample · DRAM 으로 읽혀 r3-sample-dram 셀이 적용됐고, cap 이 있는 파라미터가 없습니다(1개 면제).')
 })
@@ -143,7 +143,7 @@ test('son 상속: fallback 이던 son 만 mother 의 cap 을 받고 "mother 상�
   ])
   assert.equal(param(ex, 'CELL_SP').source_label, 'mother 상속')
   assert.equal(param(ex, 'CELL_SP').over_by, null, '상속받은 13 안이라 위반이 아닙니다')
-  assert.equal(ex.sentence, 'Core · t-EV · DRAM 으로 읽혀 r3-core-early-dram 셀이 적용됐고, EDGE_L 가 cap 10 를 6 초과하는 등 파라미터 2개가 cap 을 넘었습니다.')
+  assert.equal(ex.sentence, 'Core · tEV · DRAM 으로 읽혀 r3-core-early-dram 셀이 적용됐고, EDGE_L 가 cap 10 를 6 초과하는 등 파라미터 2개가 cap 을 넘었습니다.')
 })
 
 test('judgeSons=false: 출처는 그대로이고, mother 에 얹힌 son 에만 "· 제외" 가 붙습니다', () => {
@@ -164,17 +164,19 @@ test('판정에서 뺀 파라미터가 있으면 "모든 파라미터" 라고 �
   assert.match(ex.sentence, /판정한 파라미터는 모두 cap 이내입니다\.$/)
 })
 
-test('Pool 은 phase 를 이깁니다: 셀 축은 yield_check 이고 phase 는 쓰지 않았다고 적습니다', () => {
-  // CONTEXT.md §Product Family — "DRAM Pool제 (@Spica PV)". phase 가 PV 여도
-  // r3-core-tvpv(EDGE 16)가 아니라 Pool 셀(EDGE 10)이 적용됩니다.
-  const pool = recipe([{ name: 'EDGE_L', point_count: 16 }], { family: 'Pool', phase: 'PV' })
-  const { ex } = explain(pool, { annotation: { yield_check: 'before' } })
-  assert.deepEqual(ex.cell, { kind: 'cell', id: 'r3-pool-before-dram', summary: 'R3 · Main · Pool · 수율 전 · DRAM' })
-  assert.equal(ex.sentence, 'Pool · 수율 전 · DRAM 으로 읽혀 r3-pool-before-dram 셀이 적용됐고, EDGE_L 가 cap 10 를 6 초과했습니다.')
-  assert.deepEqual(ex.input_rows.filter(r => r.label === 'phase' || r.label === 'yield_check'), [
-    { label: 'yield_check', value: '수율 전' },
-    { label: 'phase', value: 'PV (Pool 은 셀 선택에 phase 를 쓰지 않습니다)' }
-  ])
+test('Pool제: phase 축 없이 memory 로만 셀을 고릅니다', () => {
+  const pool = recipe([{ name: 'EDGE_L', point_count: 16 }], { family: 'Pool', phase: null })
+  const { ex } = explain(pool)
+  assert.deepEqual(ex.cell, { kind: 'cell', id: 'r3-pool-dram', summary: 'R3 · Main · Pool제 · DRAM' })
+  assert.equal(ex.sentence, 'Pool제 · DRAM 으로 읽혀 r3-pool-dram 셀이 적용됐고, EDGE_L 가 cap 10 를 6 초과했습니다.')
+  assert.ok(!ex.input_rows.some(r => r.label === 'phase'))
+})
+
+test('description 미준수: 표준 포맷이 아니라서 판정하지 않았다고 말합니다', () => {
+  const { ex } = explain(recipe([{ name: 'EDGE_L', point_count: 99 }], { family: null, phase: null, memory_class_auto: 'unknown' }))
+  assert.deepEqual(ex.cell, { kind: 'gray', gray: 'A', reason: 'description 포맷 미준수' })
+  assert.match(ex.sentence, /표준 포맷/)
+  assert.ok(ex.input_rows.some(r => r.label === '제품군' && r.value === 'description 미준수'))
 })
 
 test('Gray-B: 빠진 어노테이션을 이름으로 말하고 cap 출처는 적지 않습니다', () => {
@@ -182,13 +184,9 @@ test('Gray-B: 빠진 어노테이션을 이름으로 말하고 cap 출처는 적
   assert.deepEqual(noMem.cell, { kind: 'gray', gray: 'B', reason: 'memory_class 미설정' })
   assert.equal(noMem.sentence, 'memory_class 가 없어 판정하지 않았습니다(Gray-B).')
   assert.deepEqual(noMem.params.map(p => [p.cap, p.cap_source, p.source_label, p.over_by]), [[null, 'unset', null, null]])
-  // gray 는 셀이 없으니 어느 축이 비었는지 보이도록 두 축을 다 적습니다.
-  assert.ok(noMem.input_rows.some(r => r.label === 'phase') && noMem.input_rows.some(r => r.label === 'yield_check'))
+  // gray 는 셀이 없으니 어느 축이 비었는지 보이도록 축을 다 적습니다.
+  assert.ok(noMem.input_rows.some(r => r.label === 'phase'))
   assert.ok(noMem.input_rows.some(r => r.label === 'memory_class' && r.value === '미설정'))
-
-  const noYield = explain(recipe([{ name: 'EDGE_L', point_count: 99 }], { family: 'Pool' })).ex
-  assert.equal(noYield.sentence, 'yield_check 가 없어 판정하지 않았습니다(Gray-B).')
-  assert.ok(noYield.input_rows.some(r => r.label === 'yield_check' && r.value === '미설정'))
 })
 
 test('Gray-A: 맞는 셀이 없다고 말합니다', () => {
@@ -198,17 +196,15 @@ test('Gray-A: 맞는 셀이 없다고 말합니다', () => {
   assert.equal(ex.params[0]!.source_label, null)
 })
 
-test('memory_class 의 출처: 자동 · 어노테이션 · VG 기본값', () => {
+test('memory_class 의 출처: description · 어노테이션', () => {
   const row = (input: RecipeInput, annotation?: Annotation) =>
     explain(input, { annotation }).ex.input_rows.find(r => r.label === 'memory_class')!.value
   const p = [{ name: 'WAFER_CD', point_count: 1 }]
-  assert.equal(row(recipe(p)), 'DRAM (자동)')
+  assert.equal(row(recipe(p)), 'DRAM (description)')
   assert.equal(row(recipe(p, { memory_class_auto: 'unknown' }), { memory_class: 'DRAM' }), 'DRAM (어노테이션)')
-  // D7 — VG·RTC·Cubic 은 class 가 없으면 DRAM 쪽으로 환원됩니다.
-  const vgEx = explain(recipe(p, { family: 'VG_RTC_Cubic', phase: null, memory_class_auto: 'unknown' })).ex
-  assert.equal(vgEx.input_rows.find(r => r.label === 'memory_class')!.value, 'DRAM (VG·RTC·Cubic 기본값)')
-  // VG 셀은 phase 도 memory_class 도 키로 쓰지 않습니다.
-  assert.equal(vgEx.sentence, 'VG·RTC·Cubic 으로 읽혀 r3-vg 셀이 적용됐고, 모든 파라미터가 cap 이내입니다.')
+  // Other 셀은 phase 도 memory_class 도 키로 쓰지 않습니다.
+  const otherEx = explain(recipe(p, { family: 'Other', phase: null, memory_class_auto: 'unknown' })).ex
+  assert.equal(otherEx.sentence, '기타 (RTC 룰) 으로 읽혀 r3-other 셀이 적용됐고, 모든 파라미터가 cap 이내입니다.')
 })
 
 test('파라미터가 없는 recipe 를 "cap 이내" 라고 하지 않습니다', () => {

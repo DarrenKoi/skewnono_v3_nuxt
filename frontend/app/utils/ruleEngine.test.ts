@@ -11,7 +11,7 @@ import {
 // --- fixtures ---
 const coreEarlyDram: RuleCell = {
   id: 'r3-core-tev-dram',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['EV', 'tEV', 'DTV', 'TTV'], memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [{ patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains', cap: 13 }]
 }
@@ -31,7 +31,7 @@ const wfOverride = { patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains' as con
 // D8 — Core early NAND (EDGE 8), Core TV/PV (EDGE/EDGE_EX 16, no memory split)
 const coreEarlyNand: RuleCell = {
   id: 'r3-core-tev-nand',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'NAND' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['EV', 'tEV', 'DTV', 'TTV'], memory_class: 'NAND' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 8, EDGE_EX: 0, _other: 9 },
   name_overrides: [wfOverride]
 }
@@ -41,39 +41,17 @@ const coreTvPv: RuleCell = {
   caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
   name_overrides: [wfOverride]
 }
-// D8 — Pool keys on yield_check (phase ignored); after-yield opens EDGE_EX
-const poolBeforeDram: RuleCell = {
-  id: 'r3-pool-before-dram',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'before', memory_class: 'DRAM' },
-  caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
-  name_overrides: [wfOverride]
-}
-const poolAfterDram: RuleCell = {
-  id: 'r3-pool-after-dram',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'after', memory_class: 'DRAM' },
+// Pool제 — 수율 전/후 구분 없이 후 기준 하나 (user-confirmed 2026-11-02)
+const poolDram: RuleCell = {
+  id: 'r3-pool-dram',
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 10, _other: 9 },
   name_overrides: [wfOverride]
 }
-// D3 — Pool 이 phase 를 이긴다는 것을 engine 이 지키는지 보기 위한 두 가지 새는 모양.
-// 둘 다 룰 편집기(adr-0004)로 사람이 만들 수 있는 cell 입니다.
-const anyFamilyTvPv: RuleCell = {
-  id: 'r3-anyfamily-tvpv',
-  selector: { fac_id: 'R3', recipe_class: 'Main', phase_in: ['TV', 'PV'] },
-  caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
-  name_overrides: [wfOverride]
-}
-const poolTvPv: RuleCell = {
-  id: 'r3-pool-tvpv',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', phase_in: ['TV', 'PV'] },
-  caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
-  name_overrides: [wfOverride]
-}
-// D3/D7 — VG·RTC·Cubic 은 phase 를 키잉하지 않는 셀 하나입니다
-// (user-confirmed 2026-08-25). VG device 는 보통 ctn_desc 에 phase 표현이
-// 없어서, phase 로 쪼갠 셀만 있으면 통째로 Gray-A 로 빠집니다.
-const vgCell: RuleCell = {
-  id: 'r3-vg',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'VG_RTC_Cubic' },
+// Core 가 아닌 전부(RTC·Cubic·요소기술·메모리 기타) — RTC 룰, phase·memory 무관
+const otherCell: RuleCell = {
+  id: 'r3-other',
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Other' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [wfOverride]
 }
@@ -92,13 +70,31 @@ const sampleNand: RuleCell = {
 // D15 — same selector shape, different fab (M-fab recipe_class × memory_class)
 const mfabMainDram: RuleCell = {
   id: 'm14-main-dram',
-  selector: { fac_id: 'M14', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
+  selector: { fac_id: 'M14', recipe_class: 'Main', family: 'Core', phase_in: ['EV', 'tEV', 'DTV', 'TTV'], memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 99, EDGE_EX: 99, _other: 99 },
   name_overrides: []
 }
 const recipe = (over: Partial<RecipeInput>): RecipeInput => ({
-  lot_cd: 'R3K-12', recipe_id: 'R', fac_id: 'R3', ctn_desc: 't-EV DRAM dev', prod_catg_cd: 'DRAM',
-  recipe_class: 'Main', family: 'Core', phase: 't-EV', memory_class_auto: 'DRAM', parameters: [], ...over
+  lot_cd: 'R3K-12', recipe_id: 'R', fac_id: 'R3', ctn_desc: '[tEV / DRAM] Cubit tEV Cell', prod_catg_cd: 'DRAM',
+  recipe_class: 'Main', family: 'Core', phase: 'tEV', memory_class_auto: 'DRAM', parameters: [], ...over
+})
+
+// --- description 표준 포맷 (user-confirmed 2026-11-02) ---
+// backend 가 device description 앞 괄호 `[phase / memory]` 를 못 읽으면 family 가
+// null 입니다. 그 recipe 는 family 를 안 단 셀까지 포함해 **어떤 셀에도** 붙지
+// 않고 룰 미정으로 빠져야 합니다 — 옛 토큰 추론으로 되돌아가지 않기로 했습니다.
+test('description 미준수(family=null)는 Gray-A — family 없는 셀도 주장하지 못한다', () => {
+  const r = applyAnnotation(recipe({
+    family: null, phase: null, memory_class_auto: 'unknown', ctn_desc: 'DRAM Pool제 (@Spica PV)',
+    parameters: [{ name: 'EDGE', point_count: 99 }]
+  }), { memory_class: 'DRAM' })
+  const res = resolveRuleCell(r, [sampleDram, { ...coreEarlyDram, selector: { fac_id: 'R3', recipe_class: 'Main' } }])
+  assert.equal(res.kind === 'gray' && res.gray, 'A')
+  assert.equal(res.kind === 'gray' && res.reason, 'description 포맷 미준수')
+})
+test('memory_class 는 description 괄호 값이 어노테이션보다 우선', () => {
+  const r = applyAnnotation(recipe({ memory_class_auto: 'DRAM' }), { memory_class: 'NAND' })
+  assert.deepEqual([r.memory_class, r.memory_class_origin], ['DRAM', 'auto'])
 })
 
 // --- D10 deriveType: longest-prefix, suffix allowed, Class-independent ---
@@ -169,8 +165,8 @@ test('resolveRuleCell: match / Gray-A / Gray-B', () => {
   const merged = applyAnnotation(recipe({}))
   assert.equal(resolveRuleCell(merged, [coreEarlyDram]).kind, 'cell')
 
-  const vg = applyAnnotation(recipe({ family: 'VG_RTC_Cubic' }))
-  const grayA = resolveRuleCell(vg, [coreEarlyDram])
+  const other = applyAnnotation(recipe({ family: 'Other' }))
+  const grayA = resolveRuleCell(other, [coreEarlyDram])
   assert.equal(grayA.kind, 'gray')
   assert.equal(grayA.kind === 'gray' && grayA.gray, 'A') // no rule
 
@@ -196,8 +192,8 @@ test('evaluateRecipe: over=violation, under=OK', () => {
   assert.equal(rUnder.pass, true) // 8 ≤ 10
 })
 test('evaluateRecipe: gray recipe is pass (conservative)', () => {
-  const vg = applyAnnotation(recipe({ family: 'VG_RTC_Cubic', parameters: [{ name: 'EDGE', point_count: 999 }] }))
-  const r = evaluateRecipe(vg, resolveRuleCell(vg, [coreEarlyDram]))
+  const other = applyAnnotation(recipe({ family: 'Other', parameters: [{ name: 'EDGE', point_count: 999 }] }))
+  const r = evaluateRecipe(other, resolveRuleCell(other, [coreEarlyDram]))
   assert.equal(r.pass, true)
   assert.equal(r.gray, 'A')
 })
@@ -261,109 +257,39 @@ test('D19 Sample Core TV/PV EDGE 16 beats phase-blind Sample (order = precedence
   assert.equal(evaluateRecipe(coreTvpvSample, fallback).pass, false)
 })
 
-// --- D7 VG·RTC·Cubic reduces to DRAM-side when class is otherwise unset ---
-test('applyAnnotation: VG/RTC/Cubic falls back to DRAM (D7)', () => {
-  const vg = applyAnnotation(recipe({ family: 'VG_RTC_Cubic', memory_class_auto: 'unknown' }))
-  assert.equal(vg.memory_class, 'DRAM')
-  // manual annotation still wins over the fallback
-  const forced = applyAnnotation(recipe({ family: 'VG_RTC_Cubic', memory_class_auto: 'unknown' }), { memory_class: 'NAND' })
-  assert.equal(forced.memory_class, 'NAND')
-})
-
-// --- D8 Main matrix: NAND EDGE 8, Core TV/PV EDGE 16, Pool yield_check keying ---
-test('D8 Core early NAND: EDGE cap 8', () => {
+// --- 룰 표 (user-confirmed 2026-11-02) ---
+test('Core early NAND: EDGE cap 8', () => {
   const r = applyAnnotation(recipe({ memory_class_auto: 'NAND', parameters: [{ name: 'EDGE', point_count: 10 }] }))
   const res = evaluateRecipe(r, resolveRuleCell(r, [coreEarlyNand]))
   assert.equal(res.pass, false) // 10 > 8
 })
-test('D8 Core TV/PV: EDGE/EDGE_EX cap 16, no memory split', () => {
+test('Core DTV·TTV 는 EV 급 — EDGE_EX 0', () => {
+  for (const phase of ['DTV', 'TTV'] as const) {
+    const r = applyAnnotation(recipe({ phase, parameters: [{ name: 'EDGE_EX', point_count: 1 }] }))
+    const res = resolveRuleCell(r, [coreTvPv, coreEarlyDram])
+    assert.equal(res.kind === 'cell' && res.cell.id, 'r3-core-tev-dram', phase)
+    assert.equal(evaluateRecipe(r, res).pass, false, phase)
+  }
+})
+test('Core TV/PV: EDGE/EDGE_EX cap 16, no memory split', () => {
   const r = applyAnnotation(recipe({ phase: 'PV', parameters: [{ name: 'EDGE', point_count: 16 }, { name: 'EDGE_EX', point_count: 16 }] }))
   const res = evaluateRecipe(r, resolveRuleCell(r, [coreTvPv]))
   assert.equal(res.pass, true) // 16 ≤ 16 boundary
 })
-test('D8 Pool keys on yield_check, ignores phase', () => {
-  // before-yield: EDGE_EX must be 0
-  const before = applyAnnotation(
-    recipe({ family: 'Pool', ctn_desc: 'PV Pool제 dram', phase: 'PV', parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
-    { yield_check: 'before' }
-  )
-  assert.equal(evaluateRecipe(before, resolveRuleCell(before, [poolBeforeDram, poolAfterDram])).pass, false)
-  // after-yield: EDGE_EX up to 10 allowed
-  const after = applyAnnotation(
-    recipe({ family: 'Pool', phase: 'PV', parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
-    { yield_check: 'after' }
-  )
-  assert.equal(evaluateRecipe(after, resolveRuleCell(after, [poolBeforeDram, poolAfterDram])).pass, true)
+test('Pool제: 수율 구분 없이 EDGE_EX 10 (DRAM) — 어노테이션 없이 판정된다', () => {
+  const ok = applyAnnotation(recipe({ family: 'Pool', phase: null, parameters: [{ name: 'EDGE_EX', point_count: 10 }] }))
+  assert.equal(evaluateRecipe(ok, resolveRuleCell(ok, [poolDram])).pass, true)
+  const over = applyAnnotation(recipe({ family: 'Pool', phase: null, parameters: [{ name: 'EDGE_EX', point_count: 11 }] }))
+  assert.equal(evaluateRecipe(over, resolveRuleCell(over, [poolDram])).pass, false)
 })
-// D3 — "DRAM Pool제 (@Spica PV)" 처럼 ctn_desc 에 Pool 과 phase 가 동시에
-// 들어 있는 device 가 실제로 있습니다(user-confirmed 2026-08-25). 그때
-// 판정은 Pool 을 따르고 phase 는 무시합니다 — payload 의 phase 값은
-// 그대로 남기되, phase 로 키잉된 cell 은 Pool recipe 를 주장하지
-// 못합니다. 룰셋이 우연히 그렇게 생긴 것이 아니라 engine 의 불변식이어야
-// 합니다 — 지금 Pool 이 이기는 것은 rules.py 가 Pool cell 에 phase_in 을 안 달아
-// 둔 덕일 뿐이고, resolveRuleCell 은 배열 첫 매칭을 집습니다.
-test('D3 Pool beats phase: family-less phase cell cannot claim a Pool recipe', () => {
-  const r = applyAnnotation(
-    recipe({ family: 'Pool', ctn_desc: 'DRAM Pool제 (@Spica PV)', phase: 'PV',
-      parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
-    { yield_check: 'before' }
-  )
-  // 이 cell 은 EDGE_EX 16 을 허용하므로, 잡히면 5 point 가 통과해 버립니다.
-  const res = resolveRuleCell(r, [anyFamilyTvPv, poolBeforeDram, poolAfterDram])
-  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-pool-before-dram')
-  assert.equal(evaluateRecipe(r, res).pass, false) // Pool before-yield → EDGE_EX cap 0
-})
-test('D3 Pool beats phase: a Pool cell keyed on phase is inert (TV 포함)', () => {
-  const r = applyAnnotation(
-    recipe({ family: 'Pool', ctn_desc: 'NAND Pool TV vehicle', phase: 'TV',
-      parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
-    { yield_check: 'before' }
-  )
-  const res = resolveRuleCell(r, [poolTvPv, poolBeforeDram, poolAfterDram])
-  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-pool-before-dram')
-})
-test('D3 Pool beats phase: phase-only ruleset leaves Pool gray, not judged', () => {
-  const r = applyAnnotation(
-    recipe({ family: 'Pool', ctn_desc: 'DRAM Pool제 (@Spica PV)', phase: 'PV',
-      parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
-    { yield_check: 'before' }
-  )
-  const res = resolveRuleCell(r, [anyFamilyTvPv])
-  assert.equal(res.kind === 'gray' && res.gray, 'A')
-})
-// Core/VG 는 그대로 phase 로 키잉됩니다 — 가드가 Pool 에만 걸리는지.
-test('D3 non-Pool families still match a family-less phase cell', () => {
-  const core = applyAnnotation(recipe({ phase: 'PV', parameters: [{ name: 'EDGE_EX', point_count: 5 }] }))
-  const res = resolveRuleCell(core, [anyFamilyTvPv])
-  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-anyfamily-tvpv')
-})
-test('D14 Pool missing yield_check → Gray-B', () => {
-  const r = applyAnnotation(recipe({ family: 'Pool', parameters: [{ name: 'EDGE_EX', point_count: 5 }] }))
-  const res = resolveRuleCell(r, [poolBeforeDram, poolAfterDram])
-  assert.equal(res.kind === 'gray' && res.gray, 'B')
-  assert.equal(res.kind === 'gray' && res.reason, 'yield_check 미설정')
-})
-
-test('D3 VG: phase 없는 VG device 도 셀에 붙는다 (Gray-A 아님)', () => {
-  const r = applyAnnotation(recipe({
-    family: 'VG_RTC_Cubic', ctn_desc: 'DRAM Vertical Gate (@Spica)', phase: null,
-    memory_class_auto: 'unknown', parameters: [{ name: 'EDGE', point_count: 10 }]
-  }))
-  const res = resolveRuleCell(r, [vgCell])
-  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-vg')
-  assert.equal(evaluateRecipe(r, res).pass, true) // 10 ≤ EDGE 10
-  // D7 — VG 는 memory_class 를 잠정 DRAM-side 로 환원하므로 Gray-B 도 안 남습니다.
-  assert.equal(r.memory_class, 'DRAM')
-})
-test('D3 VG: phase 가 있어도 같은 셀이 잡힌다 (phase 축 무관)', () => {
-  for (const phase of ['t-EV', 'EV', 'TV', 'PV'] as const) {
+test('Other(RTC 룰): phase·memory 와 무관하게 한 셀, EDGE_EX 0', () => {
+  for (const [phase, mem] of [[null, 'DRAM'], ['TV', 'unknown']] as const) {
     const r = applyAnnotation(recipe({
-      family: 'VG_RTC_Cubic', phase, parameters: [{ name: 'EDGE_EX', point_count: 1 }]
+      family: 'Other', phase, memory_class_auto: mem, parameters: [{ name: 'EDGE_EX', point_count: 1 }]
     }))
-    const res = resolveRuleCell(r, [vgCell])
-    assert.equal(res.kind === 'cell' && res.cell.id, 'r3-vg', phase)
-    // 합친 셀은 보수적인 쪽입니다 — 예전 r3-vg-tvpv 의 EDGE_EX 16 은 없습니다.
-    assert.equal(evaluateRecipe(r, res).pass, false, phase)
+    const res = resolveRuleCell(r, [coreTvPv, otherCell])
+    assert.equal(res.kind === 'cell' && res.cell.id, 'r3-other')
+    assert.equal(evaluateRecipe(r, res).pass, false)
   }
 })
 
@@ -722,8 +648,7 @@ test('Gray-B 는 비어 있던 어노테이션 필드를 gray_field 로 남깁�
 test('applyAnnotation 은 memory_class 의 출처를 남깁니다', () => {
   const base = recipe({})
   assert.equal(applyAnnotation(base).memory_class_origin, 'auto')
-  assert.equal(applyAnnotation(base, { memory_class: 'NAND' }).memory_class_origin, 'annotation')
   const unknown = { ...base, memory_class_auto: 'unknown' as const }
   assert.equal(applyAnnotation(unknown).memory_class_origin, null)
-  assert.equal(applyAnnotation({ ...unknown, family: 'VG_RTC_Cubic' }).memory_class_origin, 'family')
+  assert.equal(applyAnnotation(unknown, { memory_class: 'NAND' }).memory_class_origin, 'annotation')
 })

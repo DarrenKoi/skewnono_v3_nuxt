@@ -112,7 +112,9 @@ OFFICE-VERIFY 목록
 4. ``para_all`` 은 **파라미터 총 개수**입니다. 2026-08-10 에 버킷이 정확 일치에서
    구간으로 바뀌면서 다섯 구간이 전체를 덮게 되어, "총 개수" 와 "버킷 합" 이 같은
    값이 되었습니다 — 예전의 잔여분 로그는 셀 것이 없어 사라졌습니다.
-5. ``phase`` — ctn_desc 의 "p-EV" 는 계약 Literal 에 없어 None 이 됩니다.
+5. ``ctn_desc`` 표준 포맷 — 합의(2026-11-02)된 ``[phase / DRAM|NAND|기타] …``
+   가 실제로 이 field 에 실리는지, 괄호·슬래시가 전각 문자로 들어오지 않는지.
+   안 맞으면 그 device 는 전부 룰 미정(Gray)으로 보입니다.
 6. M-fab ``oper_seq``/``samp_seq`` 는 원천에 없어 접두사 rank 로 합성합니다.
 """
 
@@ -140,6 +142,7 @@ from backend.ebeam.device_statistics.contracts import (
     SummaryRow,
     TrendBucket,
 )
+from backend.ebeam.device_statistics.desc_format import parse_device_desc
 from backend.ebeam.device_statistics.para_buckets import (
     PARA_BUCKETS,
     count_points,
@@ -1207,78 +1210,6 @@ def _bucket_members(
 
 # ───────────────────── recipe-params (RecipeInput 형태) ─────────────────────
 
-_POOL_TOKEN = re.compile(r"(pool|풀)", re.IGNORECASE)
-
-# VG·RTC·Cubic 은 한 제품군인데 **표기가 여럿**입니다 — "Vertical Gate",
-# "Vertical", "VG", "RTC", "Cubic" 이 desc 에 섞여 쓰입니다
-# (user-confirmed 2026-08-25). 단독 "VG"/"RTC"/"Cubic" 은 단어경계로 좁혀
-# "AVG"/"VGA" 같은 단어 안쪽 우연 일치를 막습니다. "vertical gate" 는 붙여
-# 쓰거나 띄어 쓴 두 표기를 모두 받습니다.
-# "Vertical Gate"/"VerticalGate" 는 맨 앞 ``vertical`` 이 이미 덮으므로 따로
-# 적지 않습니다 — 덧붙이면 절대 도달하지 않는 가지가 됩니다.
-_VG_TOKEN = re.compile(r"vertical|\bVG\b|\bRTC\b|\bCubic\b", re.IGNORECASE)
-
-# 개발 phase. "t-EV"/"tev" 를 "EV" 보다 먼저 봐야 합니다(부분 일치 함정).
-# "p-EV" 는 계약 Literal 에 없어 None 이 됩니다 — OFFICE-VERIFY #5.
-_PHASE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("t-EV", re.compile(r"\bt\s*-?\s*EV\b", re.IGNORECASE)),
-    ("PV", re.compile(r"\bPV\b", re.IGNORECASE)),
-    ("TV", re.compile(r"\bTV\b", re.IGNORECASE)),
-    ("EV", re.compile(r"(?<![tp]-)\bEV\b", re.IGNORECASE)),
-)
-
-
-def _phase_of(ctn_desc: str) -> Literal["t-EV", "EV", "TV", "PV"] | None:
-    """ctn_desc 의 phase 토큰. ``_family_of`` 와 **독립적으로** 봅니다.
-
-    "DRAM Pool제 (@Spica PV)" 처럼 Pool 과 phase 가 한 문자열에 같이 오는
-    device 가 있습니다(user-confirmed 2026-08-25). 그때도 여기서 phase 를
-    지우면 안 됩니다 — 두 축은 직교하고 payload 는 둘 다 실어야 합니다.
-    Pool 이 phase 를 이기는 것은 **판정** 규칙이고, 판정은 client-side 라
-    ``ruleEngine.ts`` 의 ``selectorMatches`` 가 담당합니다.
-    """
-    for phase, pattern in _PHASE_PATTERNS:
-        if pattern.search(ctn_desc or ""):
-            return phase  # type: ignore[return-value]
-    return None
-
-
-def _family_of(ctn_desc: str) -> Literal["Core", "Pool", "VG_RTC_Cubic"]:
-    """D3 — VG·RTC·Cubic > Pool > Core.
-
-    가장 구체적인 것이 이깁니다. VG·RTC·Cubic 이 Pool 과 한 ``ctn_desc`` 에
-    같이 나오면 VG 가 이기고(user-confirmed 2026-08-25), Pool 이 phase 와 같이
-    나오면 파생은 둘 다 하되 **판정에서** Pool 이 이깁니다(ruleEngine.ts
-    ``selectorMatches``).
-
-    2026-07-31 에는 ``VG_RTC_Cubic`` 을 "원천에서 판별할 근거가 없다" 고 보아
-    발행하지 않았습니다. 그 판단은 **철회되었습니다** — 요구사항 원문
-    (``docs/issues/ground_rules/ground_rules.txt`` 31행)이 맞고, desc 에
-    "Vertical Gate"/"Vertical"/"VG"/"RTC"/"Cubic" 이 실린다는 담당자 확인이
-    2026-08-25 에 있었습니다.
-
-    OFFICE-VERIFY — 단독 ``VG`` 표기가 항상 Vertical Gate 를 뜻하는지는 사무실
-    desc 샘플로 확인이 필요합니다. 다른 뜻으로 쓰인 단독 ``VG`` 가 있으면 이
-    패턴이 그 device 를 오분류합니다.
-    """
-    text = ctn_desc or ""
-    if _VG_TOKEN.search(text):
-        return "VG_RTC_Cubic"
-    if _POOL_TOKEN.search(text):
-        return "Pool"
-    return "Core"
-
-
-def _memory_class_auto(prod_catg_cd: str) -> Literal["DRAM", "NAND", "unknown"]:
-    """D7 — prod_catg_cd 에서만 파생. Tech/Advanced/빈 값은 수동 분류."""
-    code = (prod_catg_cd or "").upper()
-    if code == "DRAM":
-        return "DRAM"
-    if code in ("NAND", "FLASH"):
-        return "NAND"
-    return "unknown"
-
-
 def _recipe_class(recipe_id: str) -> Literal["Main", "Sample"]:
     """only_sample 버킷과 같은 규칙 — recipe 이름이 "_S"/"SE" 로 끝나면 Sample.
 
@@ -1302,9 +1233,13 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
         fac_id = index[lot_cd]
         info = meta.get(lot_cd, {"ctn_desc": "", "prod_catg_cd": ""})
         prod_catg_cd = info["prod_catg_cd"]
-        family = _family_of(info["ctn_desc"])
-        phase = _phase_of(info["ctn_desc"])
-        memory_class = _memory_class_auto(prod_catg_cd)
+        # family·phase·memory 는 device description 앞 괄호에서만 읽습니다
+        # (user-confirmed 2026-11-02). mock 과 같은 파서입니다. 괄호가 없는
+        # 합의 이전 포맷은 None → 프론트가 룰 미정(Gray)으로 판정합니다.
+        axes = parse_device_desc(info["ctn_desc"])
+        family = axes["family"] if axes else None
+        phase = axes["phase"] if axes else None
+        memory_class = axes["memory_class"] if axes else "unknown"
 
         steps = _steps_for(lot_cd, fac_id)
         params_by_recipe, mothers_by_recipe, regions_by_recipe = _idp_parameters(

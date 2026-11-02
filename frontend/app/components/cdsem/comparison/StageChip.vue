@@ -2,7 +2,7 @@
   <span
     class="sk-badge tracking-wide ring-1"
     :class="[chipClass, { 'sk-badge-lg': large }]"
-    :title="inferred ? 'stage 추출 실패 — EV cap 적용 중' : `stage: ${stage}`"
+    :title="inferred ? 'description 이 표준 포맷 [phase / memory] … 이 아님 — 룰 미정' : `stage: ${stage}`"
   >
     <span
       v-if="inferred"
@@ -29,6 +29,9 @@ const chipClass = computed(() => {
   }
   switch (props.stage) {
     case 'EV':
+    case 'tEV':
+    case 'DTV':
+    case 'TTV':
       return 'bg-(--sk-brand-soft) text-(--sk-brand-ink) ring-(--sk-accent-border)'
     case 'TV':
       return 'bg-amber-100/80 text-amber-800 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800/50'

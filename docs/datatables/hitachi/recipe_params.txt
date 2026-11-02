@@ -26,9 +26,9 @@ fac_id -> string: fab 코드. R3 또는 M11~M16 입니다.
 ctn_desc -> string: recipe 설명 문자열입니다.
 prod_catg_cd -> string: 제품 카테고리. DRAM, NAND, FLASH, Tech, Advanced 중 하나입니다.
 recipe_class -> string: Main 또는 Sample 입니다 (D2).
-family -> string: Core, Pool, VG_RTC_Cubic 중 하나입니다 (D3).
-phase -> string|null: t-EV, EV, TV, PV 또는 null 입니다 (D3).
-memory_class_auto -> string: DRAM, NAND, unknown 중 하나입니다. Tech/Advanced 는 unknown(수동) 입니다 (D7).
+family -> string|null: Core, Pool, Other 또는 null 입니다 (D23). null = device description 이 표준 포맷이 아님.
+phase -> string|null: EV, tEV, DTV, TTV, TV, PV 또는 null 입니다 (D23). Core 일 때만 값이 있습니다.
+memory_class_auto -> string: DRAM, NAND, unknown 중 하나입니다. description 괄호의 메모리 칸에서 옵니다 (D23).
 parameters -> records: 측정 파라미터 배열입니다. 각 원소는 {name, point_count, mother} 입니다.
                        **순서가 의미를 갖습니다** — recipe 가 파라미터를 적어 둔
                        순서 그대로이며, WAFER 계열이 맨 앞에 오는 것이 관례입니다
@@ -322,31 +322,31 @@ device 의 ctn_desc / recipe 이름에서 파생됩니다. 근거 없이 값을 
   ctn_desc      -> 그 recipe 가 걸린 **공정 스텝 이름**(R3 oper_desc /
                    M fab oper_det_desc). 문장을 지어내지 않습니다.
   prod_catg_cd  -> r3_device_grp 의 값. M fab device 는 이 컬럼이 없어
-                   ""(빈 문자열)이며, 따라서 memory_class_auto 는 unknown 입니다.
+                   ""(빈 문자열)입니다. 2026-11-02 부터 룰 축에는 쓰이지 않습니다.
   recipe_class  -> **recipe 이름이 "_S" 또는 "SE" 로 끝나면 Sample**, 아니면 Main.
                    끝자리 고정(anchored) 규칙입니다 — 이름 어디든 "SE" 를 찾으면
                    PHASE/BASE/SET 같은 평범한 단어가 전부 Sample 로 잡히고,
                    recipe_class 가 곧 프론트 cap 선택 축(D2)이라 위반 판정까지
                    뒤집힙니다. 스텝 코드(괄호 앞)로 판단하지 않습니다 —
                    오검출 가능성이 있다는 담당자 확인이 있었습니다.
-  family        -> device 의 ctn_desc 에서 파생. 우선순위는
-                   **VG_RTC_Cubic > Pool > Core** 입니다 (D3).
-                   VG 는 한 제품군인데 표기가 여럿입니다 — "Vertical Gate",
-                   "Vertical", "VG", "RTC", "Cubic" (user-confirmed 2026-08-25).
-                   단독 VG/RTC/Cubic 은 단어경계로 좁혀 "AVG"/"VGA" 를 거릅니다.
-                   2026-07-31 의 "판별 근거가 없어 발행하지 않는다" 는 철회
-                   되었습니다 — 요구사항 원문(ground_rules.txt 31행)이 맞았습니다.
-                   OFFICE-VERIFY: 단독 "VG" 표기가 항상 Vertical Gate 를 뜻하는지
-                   사무실 desc 샘플로 확인이 필요합니다.
-                   VG device 는 보통 phase 표현을 쓰지 않으므로 rules.py 의 VG 셀은
-                   phase 를 키잉하지 않습니다(셀 하나, EDGE 10 / EDGE_EX 0).
-                   Pool 과 phase 는 한 ctn_desc 에 같이 옵니다("DRAM Pool제
-                   (@Spica PV)"); 판정과 화면 칩 모두 Pool 이 이깁니다.
-  phase         -> device 의 ctn_desc 에서 파싱합니다. "t-EV"/"tev" 를 "EV"
-                   보다 먼저 봐야 합니다(부분 일치 함정).
-                   OFFICE-VERIFY: 원천에 실제로 있는 "p-EV" 는 계약 Literal
-                   (t-EV/EV/TV/PV)에 없어 현재 null 이 됩니다. 화면에 필요하면
-                   계약을 넓혀야 합니다.
+  family / phase / memory_class_auto
+                -> **device** 의 ctn_desc 앞 괄호에서만 파생합니다
+                   (user-confirmed 2026-11-02, D23). 파서는
+                   backend/ebeam/device_statistics/desc_format.py 하나이고
+                   office 어댑터와 mock 이 같이 씁니다.
+                   포맷: "[(개발 phase) / (DRAM|NAND|기타)] (Tech) (개발 phase) (Cell/Peri)"
+                     예: "[EV / DRAM] Cubit EV Cell&PEri"
+                         "[Pool제 / NAND] Petra PV Peri"
+                         "[TV / 기타] SC-MRAM TV Cell&Peri"
+                   Core  = 괄호 phase 가 EV·tEV·DTV·TTV·TV·PV + 메모리 DRAM/NAND
+                   Pool  = 괄호 phase 가 Pool제 + 메모리 DRAM/NAND
+                   Other = 그 외 전부(RTC·Cubic·요소기술·메모리 기타 …) → RTC 룰
+                   null  = 괄호가 없는 합의 이전 포맷 → 룰 미정(Gray). 예전
+                           토큰 추론(Pool/VG 단어, prod_catg_cd)으로 되돌아가지
+                           않습니다.
+                   본문의 두 번째 phase 와 Cell/Peri 꼬리는 아직 읽지 않습니다
+                   (사용자가 이유를 나중에 설명하기로 함).
+                   OFFICE-VERIFY: 괄호·슬래시가 반각으로 실리는지, 전환 속도.
 
 파라미터 이름의 세분도 — OFFICE-VERIFY
 

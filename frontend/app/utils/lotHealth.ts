@@ -260,34 +260,22 @@ export const verdictSortValue = (verdict: LotVerdict | undefined): number => {
 }
 
 // ── lot 단위 개발 단계 칩 ────────────────────────────────────────────────
-// recipe 하나하나의 family/phase 는 backend 가 주지만 **lot 안에서 섞입니다** —
-// 한 lot 이 Core/Pool/VG 와 t-EV/EV/TV/PV 를 모두 갖습니다. 그래서 이 칩은
-// 여전히 lot 단위 라벨인 ctn_desc 에서 읽습니다. cap 선택에는 더 이상 쓰이지
-// 않고(그건 서버 룰이 합니다), 표를 훑을 때의 식별자로만 남습니다.
+// device description 앞 괄호 `[(phase) / (memory)]` 의 phase 칸을 그대로 보입니다
+// (user-confirmed 2026-11-02). 룰 판정이 읽는 칸(backend `desc_format`)과 같은
+// 칸이라 칩과 적용된 cap 이 서로 다른 것을 가리키지 않습니다. 본문의 두 번째
+// phase 는 읽지 않습니다. 괄호가 없는 합의 이전 포맷은 `?` 이고, 그 lot 의 recipe
+// 는 룰 미정(Gray)입니다 — 옛 토큰 추론("Pool"/"PV" 단어 찾기)은 하지 않습니다.
 
-export type DevStage = 'EV' | 'TV' | 'PV' | 'Pool' | '?'
+/** 괄호 phase 칸의 값(EV·tEV·DTV·TTV·TV·PV·Pool·RTC·요소기술 …) 또는 `?`. */
+export type DevStage = string
 
-// 순서가 곧 우선순위입니다. **Pool 이 맨 앞이어야 합니다** — 실물 ctn_desc 에는
-// Pool 토큰과 phase 토큰이 함께 옵니다("DRAM Pool제 (@Spica PV)",
-// user-confirmed 2026-08-25). 그때 따라야 하는 것은 Pool 이고 phase 는
-// 무시합니다. 예전에는 PV 가 맨 앞이라 Pool제 device 의 칩이 `PV` 로 떴고,
-// 정작 적용되는 cap 은 Pool 룰이었습니다 — 칩과 판정이 서로 다른 것을
-// 가리켰습니다(ruleEngine.ts `selectorMatches` 의 같은 우선순위).
-const STAGE_PATTERNS: Array<{ stage: DevStage, regex: RegExp }> = [
-  // 토큰은 office `_family_of` 의 `_POOL_TOKEN` 과 **같아야** 합니다 — 둘 다
-  // "이 device 가 Pool 인가" 를 답하므로, 다르면 칩과 family 컬럼이 갈라집니다.
-  { stage: 'Pool', regex: /pool|풀/i },
-  { stage: 'PV', regex: /\bPV\b|\bP\.?V\b|\bpv\b/ },
-  { stage: 'EV', regex: /\bEV\b|\bE\.?V\b|\bev\b/ },
-  { stage: 'TV', regex: /\bTV\b|\bT\.?V\b|\btv\b/ }
-]
+const STAGE_BRACKET = /^\s*\[\s*([^/\]]+?)\s*\//
 
 export const extractStage = (ctnDesc: string | undefined): DevStage => {
-  if (!ctnDesc) return '?'
-  for (const { stage, regex } of STAGE_PATTERNS) {
-    if (regex.test(ctnDesc)) return stage
-  }
-  return '?'
+  const head = STAGE_BRACKET.exec(ctnDesc ?? '')?.[1]
+  if (!head) return '?'
+  // "Pool제" → "Pool" — 칩 색과 짧은 표기를 위해서만. 판정은 backend 가 합니다.
+  return /^pool/i.test(head) ? 'Pool' : head
 }
 
 /** 요약 행에 덧붙는 필드. 화면 컴포넌트가 읽는 것은 이 셋뿐입니다. */

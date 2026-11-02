@@ -48,3 +48,13 @@ CORE제품군의 경우 TV, PV의 경우에 EDGE 16, EDGE_EX 16
 Pool제 제품군의 경우 
 수율 확인 전 -> DRAM은 EDGE 10, NAND는 EDGE 8, EDGE_EX는 모두 0
 수율 확인 후 -> DRAM은 EDGE 10, EDGE_EX 10 , NAND는 EDGE 8, EDGE_EX 8
+
+[2026-11-02 개정 — description 표준 포맷]
+R3 device description(ctn_desc)을 아래 포맷으로 통일하기로 합의. 룰 축은 앞 괄호에서만 읽는다.
+  [(개발 phase) / (DRAM | NAND | 기타)] (Tech 이름) (개발 phase) (Cell/Peri)
+  예) [EV / DRAM] Cubit EV Cell&PEri, [Pool제 / NAND] Petra PV Peri, [RTC / DRAM] VIRGO RTC Cell&PEri
+Core(DRAM/NAND + EV·tEV·DTV·TTV·TV·PV): 기존 룰 유지. TV·PV 는 EDGE 16 / EDGE_EX 16, 나머지 phase 는 EV 급.
+Pool제: 수율 확인 전/후 구분 없이 "후" 기준으로 통합 (DRAM 10/10, NAND 8/8).
+기타·RTC·Cubic·요소기술 등 Core 가 아닌 경우: 전부 RTC 룰 (EDGE 10 / EDGE_EX 0).
+Sample Recipe: WAFER/LEVEL/EDGE/EDGE_EX 는 위 기준과 같다. 나머지 파라는 추가 가능하나 사유가 있어야 한다.
+결정 기록: grilling-log.md D23.

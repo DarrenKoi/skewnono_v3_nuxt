@@ -449,3 +449,61 @@ recipe 수), ③ R3 compliance device row 의 health-color 유지 여부.
 
 **영향 파일(예상)**: `device-statistics/index.vue`(+ 공유 드릴다운 컴포넌트 신설), `measurement-rules.vue`
 (compliance 섹션 추가), `rules.py`(M-fab 제거), 신규 mock `recipe-params`(파라미터 point_count raw, §8-bis B).
+
+## 2026-11-02 — device description 표준 포맷 + 룰 개정 (D23, D3·D7·D8·D19 supersede)
+
+### D23 — 룰 축은 description 앞 괄호에서만, Pool 수율 구분 폐기, 비-Core 는 RTC 룰
+
+공정·소자·MI 합의로 R3 device description 을 아래 포맷으로 통일하기로 했고 곧 적용됩니다
+(user-confirmed 2026-11-02).
+
+```text
+[(개발 phase) / (DRAM | NAND | 기타)] (Tech 이름) (개발 phase) (Cell/Peri)
+
+[EV / DRAM] Cubit EV Cell&PEri
+[Pool제 / NAND] Petra PV Peri
+[TV / DRAM] Spica DPEX PV Peri
+[TV / 기타] SC-MRAM TV Cell&Peri
+[RTC / DRAM] VIRGO RTC Cell&PEri
+[요소기술 / NAND] SSL Cut Cell
+[EV / NAND] AI-N B EV Cell
+[TV / DRAM] PMG1.0 TV Peri
+```
+
+Cell 과 Peri 를 나누지 않으면 `Cell&Peri`, Dummy wafer 는 `CellDummy` / `PeriDummy` 입니다.
+Tech 이름이 없으면 과제 설명을 씁니다. phase 가 두 번 들어가는 이유는 추후 설명 예정입니다.
+
+**룰 표 (Main · Sample 공통 WAFER 13 · LEVEL 4)**
+
+| 구분 | 조건 | EDGE | EDGE_EX |
+| --- | --- | --- | --- |
+| Core 초기 | EV·tEV·DTV·TTV, DRAM | 10 | 0 |
+| Core 초기 | EV·tEV·DTV·TTV, NAND | 8 | 0 |
+| Core TV 이후 | TV·PV | 16 | 16 |
+| Pool제 | DRAM | 10 | 10 |
+| Pool제 | NAND | 8 | 8 |
+| 기타 (RTC 룰) | RTC·Cubic·요소기술·메모리 기타 등 | 10 | 0 |
+
+기타 파라는 Main 9, Sample 0 입니다. Sample 은 추가가 가능하나 사유가 있어야 하므로 위반으로
+드러냅니다.
+
+**질의응답 (user 2026-11-02)**
+
+- DTV·TTV 는 **EV 급**입니다. "TV 부터 16" 의 TV 는 TV·PV 만입니다.
+- 괄호가 없는 옛 포맷은 **룰 미정(Gray)** 입니다. 옛 토큰 추론으로 fallback 하지 않습니다.
+- 메모리는 **괄호 값이 우선**입니다(prod_catg_cd·어노테이션보다).
+- Sample 은 WAFER/LEVEL/EDGE/EDGE_EX 를 Main 과 같게 둡니다. 기타 파라는 0 을 유지합니다.
+
+**기본값으로 정한 것 (확인 필요 시 뒤집기)**
+
+- 룰은 **괄호 phase** 만 봅니다. 본문 phase 와 Cell/Peri 꼬리는 아직 읽지 않습니다.
+- `[Pool제 / 기타]` 는 Pool 룰이 DRAM/NAND 로만 갈리므로 RTC 룰로 보냅니다.
+- 화면 단계 칩은 괄호 phase 칸을 그대로 보입니다. 그래서 `[Pool제 / 기타]` 의 칩은 Pool 인데
+  적용 cap 은 RTC 룰입니다.
+
+**Supersede**: D3(토큰 기반 family 파생과 VG > Pool > Core 우선순위), D7(prod_catg_cd 로 memory
+파생, VG 의 DRAM 환원), D8 의 Pool `yield_check` 축, D19(Sample Core TV·PV 만 EDGE 16 · EDGE_EX 0).
+`yield_check` 어노테이션과 그로 인한 Gray-B 는 없어졌습니다.
+
+**구현**: `backend/ebeam/device_statistics/desc_format.py`(파서, office·mock 공용), `providers/rules.py`,
+`frontend/app/utils/ruleEngine.ts`(`family == null` → Gray-A "description 포맷 미준수").

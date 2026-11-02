@@ -163,7 +163,7 @@ const recipesByLot = computed(() => groupRecipesByLot(data.value ?? []))
  *
  *   특수 job(_*CDU/_FULL/_HALF/_MTX) — 분자·분모 **모두**에서 제외. 웨이퍼
  *     전면을 훑는 job 이라 애초에 상한이 겨냥한 recipe 가 아닙니다.
- *   gray(룰 미정 · 어노테이션 미설정) — 분모에서만 제외 (D14, 보수적).
+ *   gray(룰 미정 · description 미준수) — 분모에서만 제외 (D14, 보수적).
  *
  * 남는 차이 하나는 **버킷**입니다. 이 화면에는 버킷 선택이 없어 늘 전 recipe 를
  * 봅니다 — 비교 페이지에서 좁은 버킷을 고르면 그쪽 숫자가 더 작은 것이 정상이고,
@@ -236,7 +236,7 @@ const formatViolations = (row: ComplianceRow) =>
 
 const violationTitle = (row: ComplianceRow) => {
   const parts = [`전체 recipe ${row.recipe_count}건`, `판정 ${row.judged_count}건`]
-  if (row.gray_count > 0) parts.push(`룰·어노테이션 미정으로 판정 제외 ${row.gray_count}건`)
+  if (row.gray_count > 0) parts.push(`룰 미정·description 미준수로 판정 제외 ${row.gray_count}건`)
   if (row.exempt_count > 0) parts.push(`특수 job(CDU 계열/FULL/HALF/MTX) ${row.exempt_count}건은 판정 범위 밖`)
   // 토글이 켜져 있을 때는 적지 않습니다 — 기본값을 매번 적어 두면 정말 달라진
   // 날의 한 줄이 늘 있던 문구에 묻힙니다.

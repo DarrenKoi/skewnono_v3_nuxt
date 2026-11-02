@@ -23,11 +23,8 @@ export const CAP_SOURCE_LABEL: Record<ParamCapSource, string> = {
 
 const ORIGIN_LABEL: Record<MemoryClassOrigin, string> = {
   annotation: '어노테이션',
-  auto: '자동',
-  family: 'VG·RTC·Cubic 기본값'
+  auto: 'description'
 }
-
-const YIELD_LABEL = { before: '수율 전', after: '수율 후' } as const
 
 /** 출처 뒤에 붙는 "판정에서 뺐다" 꼬리. deviceDrill 의 `cap N · 제외` 와 같은 말입니다. */
 const EXCLUDED_SUFFIX = ' · 제외'
@@ -39,8 +36,8 @@ const EXCLUDED_SUFFIX = ' · 제외'
 export const capSourceLabel = (p: ParamResult, gray: boolean): string | null =>
   gray ? null : CAP_SOURCE_LABEL[p.cap_source] + (p.judged ? '' : EXCLUDED_SUFFIX)
 
-/** 적용된 셀이 키로 쓴 축. 둘 다 안 쓰는 셀(Sample · VG)은 null. */
-type Axis = 'phase' | 'yield_check' | null
+/** 적용된 셀이 키로 쓴 축. phase 를 안 쓰는 셀(Pool · Other)은 null. */
+type Axis = 'phase' | null
 
 export type ExplainCell
   = | { kind: 'cell', id: string, summary: string }
@@ -53,7 +50,7 @@ export interface RecipeExplanation {
   sentence: string
 }
 
-/** 셀 selector 를 한 줄로. 예: `R3 · Main · Core · t-EV/EV · DRAM`. */
+/** 셀 selector 를 한 줄로. 예: `R3 · Main · Core · EV/tEV/DTV/TTV · DRAM`. */
 export const selectorSummary = (cell: RuleCell): string => {
   const s = cell.selector
   return [
@@ -61,32 +58,22 @@ export const selectorSummary = (cell: RuleCell): string => {
     s.recipe_class,
     familyLabel(s.family),
     s.phase_in?.join('/'),
-    s.yield_check && YIELD_LABEL[s.yield_check],
     s.memory_class
   ].filter(Boolean).join(' · ')
 }
 
 const axisOf = (cell: RuleCell): Axis =>
-  cell.selector.yield_check ? 'yield_check' : cell.selector.phase_in ? 'phase' : null
+  cell.selector.phase_in ? 'phase' : null
 
 const inputRows = (r: MergedRecipe, axis: Axis, gray: boolean): RecipeExplanation['input_rows'] => {
   const rows = [
     { label: 'recipe', value: r.recipe_id },
     { label: 'recipe class', value: r.recipe_class },
-    { label: '제품군', value: familyLabel(r.family) }
+    { label: '제품군', value: r.family ? familyLabel(r.family) : 'description 미준수' }
   ]
   // 셀이 실제로 쓴 축만 적습니다. gray 는 셀이 없으니 무엇이 비었는지 보이도록
   // 둘 다 적습니다.
   if (gray || axis === 'phase') rows.push({ label: 'phase', value: r.phase ?? '없음' })
-  if (gray || axis === 'yield_check') {
-    rows.push({ label: 'yield_check', value: r.yield_check ? YIELD_LABEL[r.yield_check] : '미설정' })
-  }
-  // Pool 은 판정에서 phase 를 이깁니다(CONTEXT.md §Product Family). phase 값이
-  // 있는데 셀 선택에 쓰이지 않았다는 것을 말해 두지 않으면, 칩은 PV 인데 cap 은
-  // Pool 룰인 것이 어긋남으로 읽힙니다.
-  if (!gray && r.family === 'Pool' && r.phase) {
-    rows.push({ label: 'phase', value: `${r.phase} (Pool 은 셀 선택에 phase 를 쓰지 않습니다)` })
-  }
   rows.push({
     label: 'memory_class',
     value: r.memory_class
@@ -96,12 +83,12 @@ const inputRows = (r: MergedRecipe, axis: Axis, gray: boolean): RecipeExplanatio
   return rows
 }
 
-/** 문장 앞머리 — 셀이 키로 쓴 입력만. 예: `Core · t-EV · DRAM`. */
+/** 문장 앞머리 — 셀이 키로 쓴 입력만. 예: `Core · tEV · DRAM`. */
 const readAs = (r: MergedRecipe, axis: Axis, cell: RuleCell): string => {
   const s = cell.selector
   return [
     s.family ? familyLabel(r.family) : r.recipe_class,
-    axis === 'phase' ? r.phase : axis === 'yield_check' && r.yield_check ? YIELD_LABEL[r.yield_check] : null,
+    axis === 'phase' ? r.phase : null,
     s.memory_class && r.memory_class
   ].filter(Boolean).join(' · ')
 }
@@ -138,12 +125,14 @@ const verdictClause = (result: RecipeResult): string => {
     : `${head} 초과하는 등 파라미터 ${over.length}개가 cap 을 넘었습니다.`
 }
 
-const graySentence = (gray: 'A' | 'B', field: GrayField | undefined): string =>
-  gray === 'A'
-    ? '맞는 룰 셀이 없어 판정하지 않았습니다(Gray-A).'
-    : field
-      ? `${field} 가 없어 판정하지 않았습니다(Gray-B).`
-      : '어노테이션이 없어 판정하지 않았습니다(Gray-B).'
+const graySentence = (gray: 'A' | 'B', field: GrayField | undefined, unparsed: boolean): string =>
+  unparsed
+    ? 'device description 이 표준 포맷 [phase / memory] … 이 아니라 판정하지 않았습니다(Gray-A).'
+    : gray === 'A'
+      ? '맞는 룰 셀이 없어 판정하지 않았습니다(Gray-A).'
+      : field
+        ? `${field} 가 없어 판정하지 않았습니다(Gray-B).`
+        : '어노테이션이 없어 판정하지 않았습니다(Gray-B).'
 
 /**
  * 판정 하나의 근거. `recipe` 와 `cell` 은 그 판정이 **실제로 쓴** 것이어야 합니다
@@ -161,7 +150,7 @@ export const explainRecipe = (
     return {
       input_rows: inputRows(recipe, null, true),
       cell: { kind: 'gray', gray, reason: result.gray_reason ?? '룰 미정' },
-      sentence: graySentence(gray, result.gray_field)
+      sentence: graySentence(gray, result.gray_field, recipe.family == null)
     }
   }
   const axis = axisOf(cell)

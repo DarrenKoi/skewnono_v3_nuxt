@@ -119,15 +119,15 @@ test('룰은 있는데 판정에 없는 행은 아는 만큼만 적는다', () =
 // (d6e6aacb) 룰은 있었습니다. kind 만 보고 '룰 없음' 을 적으면 한 파일이 같은
 // fab 에 대해 "룰 미정으로 판정 제외" 와 "룰 없음" 을 나란히 말하게 됩니다.
 test('전부 gray 인 lot 을 룰 없음이라 부르지 않는다', () => {
-  // Pool 인데 yield_check 어노테이션이 없어 판정 보류 → 전 recipe gray.
+  // device description 이 표준 포맷이 아니라 판정 보류 → 전 recipe gray.
   const graySet = [params('RCP-001', [['WAFER_CD', 13]])].map(r => ({
-    ...r, family: 'Pool' as const, prod_catg_cd: 'Tech'
+    ...r, family: null, phase: null, memory_class_auto: 'unknown' as const
   }))
   const verdict = buildLotVerdicts(graySet, {
     R3: {
       cells: [{
         id: 'c1',
-        selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'before' },
+        selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool' },
         caps: { WAFER: 9, _other: 20 },
         name_overrides: []
       }],
@@ -143,7 +143,7 @@ test('전부 gray 인 lot 을 룰 없음이라 부르지 않는다', () => {
     [...graySet, params('RCP-999', [['WAFER_CD', 13]])],
     verdict
   )
-  assert.equal(rows[0]?.[9], 'yield_check 미설정')
+  assert.equal(rows[0]?.[9], 'description 포맷 미준수')
   assert.equal(rows[1]?.[3], '판정 결과 없음', '룰은 있었으므로 룰 없음 은 거짓입니다')
   assert.equal(rows[1]?.[9], '판정 결과 없음')
 })

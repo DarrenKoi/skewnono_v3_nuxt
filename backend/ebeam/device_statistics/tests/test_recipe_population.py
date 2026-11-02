@@ -595,16 +595,20 @@ def test_recipe_class_is_derived_from_the_recipe_name():
         assert row["recipe_class"] == expected, row["recipe_id"]
 
 
-def test_memory_class_auto_survives_a_none_prod_catg_cd():
-    """prod_catg_cd 는 R3 카탈로그에만 있으므로 M-fab lot 은 None 으로 옵니다.
-
-    office 어댑터는 (prod_catg_cd or "") 로 이미 막고 있었는데 mock 쪽은 맨
-    .upper() 라 AttributeError 가 날 수 있었습니다.
+def test_recipe_axes_come_from_the_device_description():
+    """family·phase·memory 는 recipe 마다 굴리지 않고 **device** description 앞
+    괄호에서 파생합니다 (user-confirmed 2026-11-02). 같은 lot 의 recipe 는 셋이
+    모두 같아야 하고, 그 값은 desc_format.parse_device_desc 의 답과 같아야 합니다.
     """
-    from backend.ebeam.device_statistics.providers.recipe_params import (
-        _memory_class_auto,
-    )
+    from backend.ebeam.device_statistics.desc_format import parse_device_desc
+    from backend.ebeam.device_statistics.providers.statistics import _lot_ctn_desc
 
-    assert _memory_class_auto(None) == "unknown"
-    assert _memory_class_auto("") == "unknown"
-    assert _memory_class_auto("dram") == "DRAM"
+    descs = _lot_ctn_desc()
+    for lot_cd in ("R000", "R001", "R002", "R003"):
+        axes = parse_device_desc(descs[lot_cd])
+        expected = (
+            (axes["family"], axes["phase"], axes["memory_class"]) if axes
+            else (None, None, "unknown")
+        )
+        rows = get_recipe_params([lot_cd])
+        assert {(r["family"], r["phase"], r["memory_class_auto"]) for r in rows} == {expected}

@@ -14,7 +14,7 @@ const cell = (over: Partial<RuleCell> = {}): RuleCell => ({
   id: 'r3-core-ev-dram',
   selector: {
     fac_id: 'R3', recipe_class: 'Main', family: 'Core',
-    phase_in: ['t-EV', 'EV'], memory_class: 'DRAM'
+    phase_in: ['EV', 'tEV', 'DTV', 'TTV'], memory_class: 'DRAM'
   },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [],
@@ -66,9 +66,9 @@ test('fixedCaps on no cells yields no strip', () => {
 // --- familyLabel ---
 
 test('familyLabel prettifies the compound family and passes others through', () => {
-  assert.equal(familyLabel('VG_RTC_Cubic'), 'VG·RTC·Cubic')
+  assert.equal(familyLabel('Other'), '기타 (RTC 룰)')
   assert.equal(familyLabel('Core'), 'Core')
-  assert.equal(familyLabel('Pool'), 'Pool')
+  assert.equal(familyLabel('Pool'), 'Pool제')
   assert.equal(familyLabel('SomethingNew'), 'SomethingNew')
 })
 
@@ -80,7 +80,7 @@ test('familyLabel renders a missing family as empty, not "undefined"', () => {
 // --- vehicleLabel ---
 
 test('vehicleLabel collapses a Core phase set to EV or TV', () => {
-  assert.deepEqual(vehicleLabel(cell()), { main: 'EV', hint: '포함 이전' })
+  assert.deepEqual(vehicleLabel(cell()), { main: 'EV', hint: 'EV·tEV·DTV·TTV' })
   assert.deepEqual(
     vehicleLabel(cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV', 'PV'] } })),
     { main: 'TV', hint: '포함 이후' }
@@ -90,21 +90,6 @@ test('vehicleLabel collapses a Core phase set to EV or TV', () => {
 test('vehicleLabel reads PV alone as TV-and-after', () => {
   const pvOnly = cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['PV'] } })
   assert.deepEqual(vehicleLabel(pvOnly), { main: 'TV', hint: '포함 이후' })
-})
-
-test('vehicleLabel keeps the Pool yield split', () => {
-  const pool = (yieldCheck: 'before' | 'after') => cell({
-    selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: yieldCheck }
-  })
-  assert.deepEqual(vehicleLabel(pool('before')), { main: '수율 전' })
-  assert.deepEqual(vehicleLabel(pool('after')), { main: '수율 후' })
-})
-
-test('vehicleLabel prefers the phase set when a cell carries both axes', () => {
-  const both = cell({
-    selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV'], yield_check: 'before' }
-  })
-  assert.deepEqual(vehicleLabel(both), { main: 'TV', hint: '포함 이후' })
 })
 
 test('vehicleLabel is blank when neither axis keys the cell (Sample)', () => {
@@ -121,15 +106,11 @@ test('vehicleLabel is blank when neither axis keys the cell (Sample)', () => {
 
 // --- isExpandedCell ---
 
-test('isExpandedCell highlights the phases and yield state that open the caps', () => {
-  const sel = (over: Partial<RuleCell['selector']>): RuleCell =>
-    cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', ...over } })
-  assert.equal(isExpandedCell(sel({ phase_in: ['TV', 'PV'] })), true)
-  assert.equal(isExpandedCell(sel({ phase_in: ['PV'] })), true)
-  assert.equal(isExpandedCell(sel({ phase_in: ['t-EV', 'EV'] })), false)
-  assert.equal(isExpandedCell(sel({ yield_check: 'after' })), true)
-  assert.equal(isExpandedCell(sel({ yield_check: 'before' })), false)
-  assert.equal(isExpandedCell(sel({})), false)
+test('isExpandedCell highlights the cells whose EDGE_EX opens up', () => {
+  const caps = (edgeEx: number): RuleCell => cell({ caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: edgeEx, _other: 9 } })
+  assert.equal(isExpandedCell(caps(16)), true)
+  assert.equal(isExpandedCell(caps(10)), true) // Pool제
+  assert.equal(isExpandedCell(caps(0)), false)
 })
 
 // --- memoryOf ---
