@@ -81,6 +81,12 @@ const adminLinks = [
     description: '일별 요청 추이와 어떤 기능·사용자에게 요청이 몰리는지 봅니다.'
   },
   {
+    to: '/admin/endpoints',
+    icon: 'i-lucide-route',
+    title: '엔드포인트 분석',
+    description: '모든 /api 호출의 일별 추이와 어떤 엔드포인트·사용자가 호출을 많이 하는지 봅니다.'
+  },
+  {
     to: '/admin/logs',
     icon: 'i-lucide-file-search',
     title: '운영 로그',

@@ -1,6 +1,8 @@
 import logging
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
+from werkzeug.exceptions import HTTPException
+from werkzeug.routing import RequestRedirect
 
 from .._auth.admin import require_admin
 from .._auth.directory import lookup_members
@@ -9,6 +11,7 @@ from .._logging.feature_map import page_to_family, page_to_feature
 from .contracts import NamedUserListResponse
 from .data import (
     get_daily_visitors,
+    get_endpoint_stats,
     get_fab_page_usage,
     get_family_page_usage,
     get_me,
@@ -111,6 +114,74 @@ def activity_visitors():
 @require_admin
 def activity_requests():
     return _query(get_request_stats)
+
+
+#: Where a logged path that no /api rule answers is counted — a 404 probe,
+#: a route since removed. One bucket, so stray paths cannot crowd the list.
+UNMATCHED_ENDPOINT = "(미등록 경로)"
+
+
+def _endpoint_of(adapter, call: str) -> str:
+    """``"GET /api/hvsem/storage"`` → ``"GET /api/<tool_slug>/storage"``.
+
+    Done here, not in the providers: the Flask url_map is the only thing
+    that knows which raw paths are one endpoint, and both adapters hand over
+    the same raw ``"<METHOD> <path>"`` keys.
+    """
+    method, _, path = call.partition(" ")
+    try:
+        rule, _args = adapter.match(path, method=method, return_rule=True)
+    except RequestRedirect:
+        # strict_slashes: /api/x/ is the /api/x rule. Fold it there.
+        stripped = path.rstrip("/")
+        if stripped == path:
+            return UNMATCHED_ENDPOINT
+        return _endpoint_of(adapter, f"{method} {stripped}")
+    except HTTPException:
+        return UNMATCHED_ENDPOINT
+    # The cloud SPA catch-all answers every path; it is not an /api endpoint.
+    if not rule.rule.startswith("/api/"):
+        return UNMATCHED_ENDPOINT
+    return f"{method} {rule.rule}"
+
+
+def _endpoint_stats():
+    payload = get_endpoint_stats()
+    adapter = current_app.url_map.bind("localhost")
+    endpoint_cache: dict[str, str] = {}
+    days = []
+    for day in payload["days"]:
+        endpoints: dict[str, int] = {}
+        for call, count in day["paths"].items():
+            if call not in endpoint_cache:
+                endpoint_cache[call] = _endpoint_of(adapter, call)
+            name = endpoint_cache[call]
+            endpoints[name] = endpoints.get(name, 0) + count
+        days.append(
+            {
+                "date": day["date"],
+                "requests": day["requests"],
+                "endpoints": endpoints,
+                "users": day["users"],
+            }
+        )
+    members = lookup_members({uid for day in days for uid in day["users"]})
+    return {
+        "generated_at": payload["generated_at"],
+        "truncated": payload["truncated"],
+        "days": days,
+        "names": {
+            uid: {"emp_nm": member.get("emp_nm"), "dept_nm": member.get("dept_nm")}
+            for uid, member in members.items()
+        },
+    }
+
+
+# Admin-only: who calls what, per day. Every /api call, not just user intent.
+@bp.get("/activity/endpoints")
+@require_admin
+def activity_endpoints():
+    return _query(_endpoint_stats)
 
 
 @bp.get("/activity/users/<user_id>")

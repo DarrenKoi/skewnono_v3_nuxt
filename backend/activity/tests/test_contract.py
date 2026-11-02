@@ -15,6 +15,7 @@ from backend._core.contract_check import assert_matches
 from backend._runtime.data_provider import get_data_provider
 from backend.activity import data
 from backend.activity.contracts import (
+    EndpointStatsResponse,
     FabUsageResponse,
     FamilyUsageResponse,
     MeResponse,
@@ -44,6 +45,10 @@ def test_daily_visitors_matches_contract():
 
 def test_request_stats_matches_contract():
     assert_matches(data.get_request_stats(), RequestsResponse)
+
+
+def test_endpoint_stats_matches_contract():
+    assert_matches(data.get_endpoint_stats(), EndpointStatsResponse)
 
 
 def test_users_list_matches_contract():

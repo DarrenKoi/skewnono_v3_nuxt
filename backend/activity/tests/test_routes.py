@@ -34,6 +34,11 @@ def make_client(monkeypatch):
     )
     monkeypatch.setattr(routes, "get_daily_visitors", lambda: {"days": []})
     monkeypatch.setattr(routes, "get_request_stats", lambda: {"days": []})
+    monkeypatch.setattr(
+        routes,
+        "get_endpoint_stats",
+        lambda: {"generated_at": "x", "truncated": False, "days": []},
+    )
 
     def build(user_id, identity_source):
         app = Flask(__name__)
@@ -56,6 +61,7 @@ def make_client(monkeypatch):
         "/api/activity/users/2067928",
         "/api/activity/visitors",
         "/api/activity/requests",
+        "/api/activity/endpoints",
     ],
 )
 def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
@@ -74,6 +80,7 @@ def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
         "/api/activity/users/2067928",
         "/api/activity/visitors",
         "/api/activity/requests",
+        "/api/activity/endpoints",
     ],
 )
 def test_user_enumeration_is_allowed_for_the_home_admin(make_client, path):
@@ -371,3 +378,48 @@ def test_a_family_page_posted_to_the_plain_url_is_ranked_without_a_family(
     assert response.status_code == 204
     assert list(store["1234567"].last_opened) == ["storage"]
     assert all(row["total"] == 0 for row in mock.get_family_page_usage()["families_7d"])
+
+
+def test_endpoint_stats_fold_raw_paths_onto_their_flask_rule(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_ADMIN_USERS", raising=False)
+    monkeypatch.setattr(
+        routes,
+        "get_endpoint_stats",
+        lambda: {
+            "generated_at": "x",
+            "truncated": False,
+            "days": [
+                {
+                    "date": "2026-11-02",
+                    "requests": 7,
+                    "paths": {
+                        "GET /api/activity/users/111": 2,
+                        "GET /api/activity/users/222": 3,
+                        "POST /api/page-view": 1,
+                        "GET /api/no-such-route": 1,
+                    },
+                    "users": {"111": 5},
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(routes, "lookup_members", lambda ids: {
+        uid: {"emp_nm": "홍길동", "dept_nm": None} for uid in ids
+    })
+    app = Flask(__name__)
+
+    @app.before_request
+    def identity():
+        g.user_id = "local-dev"
+        g.identity_source = "local"
+
+    app.register_blueprint(routes.bp, url_prefix="/api")
+
+    body = app.test_client().get("/api/activity/endpoints").json
+
+    assert body["days"][0]["endpoints"] == {
+        "GET /api/activity/users/<user_id>": 5,
+        "POST /api/page-view": 1,
+        routes.UNMATCHED_ENDPOINT: 1,
+    }
+    assert body["names"] == {"111": {"emp_nm": "홍길동", "dept_nm": None}}

@@ -491,6 +491,7 @@ def test_fab_totals_use_distinct_users_and_normalize_missing_keys():
         ("/api/activity/users/u1", "get_user_history"),
         ("/api/activity/visitors", "get_daily_visitors"),
         ("/api/activity/requests", "get_request_stats"),
+        ("/api/activity/endpoints", "get_endpoint_stats"),
     ],
 )
 def test_activity_query_failures_are_normalized_to_503(
@@ -923,3 +924,37 @@ def test_request_stats_refuse_a_partial_result():
 
     with pytest.raises(RuntimeError, match="partial"):
         reader.get_request_stats()
+
+
+def test_endpoint_stats_page_both_composites_and_count_every_call():
+    def page(buckets, after=None):
+        node = {"buckets": buckets}
+        if after:
+            node["after_key"] = after
+        return {"aggregations": {"pairs": node}}
+
+    reader, search, _aliases = _reader(
+        [
+            page(
+                [{"key": {"day": "2026-07-27", "method": "GET", "path": "/api/a"}, "doc_count": 4}],
+                after={"day": "2026-07-27"},
+            ),
+            page([{"key": {"day": "2026-07-27", "method": "GET", "path": "/api/b"}, "doc_count": 2}]),
+            page([{"key": {"day": "2026-07-27", "user_id": "u1"}, "doc_count": 5}]),
+        ]
+    )
+
+    payload = reader.get_endpoint_stats()
+
+    assert payload["truncated"] is False
+    assert len(payload["days"]) == 90
+    assert payload["days"][-1] == {
+        "date": "2026-07-27",
+        "requests": 6,
+        "paths": {"GET /api/a": 4, "GET /api/b": 2},
+        "users": {"u1": 5},
+    }
+    # The second page resumes where the first stopped.
+    assert search.bodies[1]["aggs"]["pairs"]["composite"]["after"] == {"day": "2026-07-27"}
+    # Load, not intent: no weight-1 filter.
+    assert "activity_weight" not in str(search.bodies[0]["query"])

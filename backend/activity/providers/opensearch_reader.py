@@ -12,6 +12,8 @@ from backend._core.timefmt import iso_z
 from backend._logging.target import resolve_logging_target
 from backend.activity.contracts import (
     DailyCount,
+    EndpointDay,
+    EndpointStatsResponse,
     FabUsageResponse,
     FabUsageRow,
     FamilyUsageResponse,
@@ -50,6 +52,12 @@ COMPOSITE_PAGE_SIZE = 1000
 SEARCH_MAX_BUCKETS = 65_535
 VISITOR_PAGE_SIZE = SEARCH_MAX_BUCKETS // (VISITOR_LOOKBACK_DAYS + 1)
 CARDINALITY_PRECISION = 40000
+# ponytail: a hard page cap on the endpoint composites. Raw paths carry ids
+# (AFM filenames, eqp_ids), so (day, method, path) pairs grow with traffic;
+# 100 pages x 1000 is far above today's volume, and hitting it is reported
+# as `truncated` rather than silently shortening the oldest days. Raise it,
+# or log the Flask rule as its own field, if the page ever says truncated.
+ENDPOINT_PAGE_LIMIT = 100
 
 # Two units share one index. Request rows answer "how much work happened";
 # page_view rows answer "which page did people open". Every aggregation must
@@ -654,6 +662,104 @@ class ActivityOpenSearchReader:
             "days": days,
             "window_7d": window_row(aggs.get("window_7d", {})),
             "window_30d": window_row(aggs.get("window_30d", {})),
+        }
+
+    def _composite_pages(
+        self,
+        query: dict[str, Any],
+        sources: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """Every composite bucket for ``sources``, and whether paging stopped
+        at ``ENDPOINT_PAGE_LIMIT`` before the end."""
+        buckets: list[dict[str, Any]] = []
+        after_key: dict[str, Any] | None = None
+        for _ in range(ENDPOINT_PAGE_LIMIT):
+            composite: dict[str, Any] = {
+                "size": COMPOSITE_PAGE_SIZE,
+                "sources": sources,
+            }
+            if after_key is not None:
+                composite["after"] = after_key
+            response = self._search(
+                {"size": 0, "query": query, "aggs": {"pairs": {"composite": composite}}}
+            )
+            pairs = response.get("aggregations", {}).get("pairs", {})
+            buckets.extend(pairs.get("buckets", []))
+            after_key = pairs.get("after_key")
+            if not after_key:
+                return buckets, False
+        return buckets, True
+
+    def get_endpoint_stats(self) -> EndpointStatsResponse:
+        """Every ``/api`` call per KST day, by method+path and by caller.
+
+        No ``_activity_filters``: those keep only weight-1 user intent, and
+        this view exists to see the load those filters hide (polling, failed
+        calls, tokens, anonymous). Composite rather than ``terms`` because raw
+        paths carry ids — a per-day top-N would drop exactly the fan-out
+        endpoints (AFM galleries) whose single paths are each rare.
+        """
+        now = self._now()
+        start = _kst_day_start(now, VISITOR_DAYS - 1)
+        query = {
+            "bool": {
+                "filter": [
+                    {"term": {"event": "request"}},
+                    {"prefix": {"path": "/api/"}},
+                    _time_range(start, now),
+                ]
+            }
+        }
+        day_source = {
+            "day": {
+                "date_histogram": {
+                    "field": "@timestamp",
+                    "calendar_interval": "day",
+                    "time_zone": "Asia/Seoul",
+                    "format": "yyyy-MM-dd",
+                }
+            }
+        }
+        path_buckets, paths_cut = self._composite_pages(
+            query,
+            [
+                day_source,
+                {"method": {"terms": {"field": "method"}}},
+                {"path": {"terms": {"field": "path"}}},
+            ],
+        )
+        user_buckets, users_cut = self._composite_pages(
+            query,
+            [day_source, {"user_id": {"terms": {"field": "user_id"}}}],
+        )
+
+        rows: dict[str, EndpointDay] = {
+            day.isoformat(): {
+                "date": day.isoformat(),
+                "requests": 0,
+                "paths": {},
+                "users": {},
+            }
+            for day in chart_days(now.astimezone(KST).date())
+        }
+        for bucket in path_buckets:
+            key = bucket.get("key", {})
+            row = rows.get(str(key.get("day", "")).split("T", 1)[0])
+            if row is None:
+                continue
+            count = int(bucket.get("doc_count", 0))
+            name = f"{key.get('method')} {key.get('path')}"
+            row["paths"][name] = row["paths"].get(name, 0) + count
+            row["requests"] += count
+        for bucket in user_buckets:
+            key = bucket.get("key", {})
+            row = rows.get(str(key.get("day", "")).split("T", 1)[0])
+            if row is not None and key.get("user_id"):
+                row["users"][str(key["user_id"])] = int(bucket.get("doc_count", 0))
+        return {
+            "generated_at": _iso_utc(now),
+            "truncated": paths_cut or users_cut,
+            "days": list(rows.values()),
         }
 
     def get_users_list(self) -> UserListResponse:

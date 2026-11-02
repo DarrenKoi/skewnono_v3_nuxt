@@ -517,6 +517,17 @@ const pageGuides: PageGuide[] = [
     notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
   },
   {
+    id: 'admin-endpoints',
+    title: '엔드포인트 분석',
+    path: '/admin/endpoints',
+    icon: 'i-lucide-route',
+    section: 'admin',
+    purpose: '서버가 받는 API 호출이 얼마나, 어느 엔드포인트로, 누구에게서 들어오는지 관리자가 확인하는 관리자 전용 화면입니다.',
+    description: '오늘·7일·30일 호출 수와 30일 일평균을 KPI로 두고, 일별 호출을 상위 5개 엔드포인트와 기타로 쌓은 막대로 2주·1개월·2개월·3개월 범위에서 보여줍니다. 그 아래 같은 기간의 엔드포인트별·사용자별 호출 Top 10을 나란히 둡니다. 요청 분석과 달리 백그라운드 갱신·실패·API Token·익명 호출까지 모두 세며, 경로의 id 부분은 하나의 엔드포인트로 묶습니다.',
+    users: '관리자',
+    notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
+  },
+  {
     id: 'admin-logs',
     title: '운영 로그',
     path: '/admin/logs',

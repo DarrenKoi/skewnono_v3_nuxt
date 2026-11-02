@@ -28,6 +28,8 @@ __all__ = [
     "DailyRequests",
     "RequestWindow",
     "RequestsResponse",
+    "EndpointDay",
+    "EndpointStatsResponse",
 ]
 
 
@@ -235,6 +237,35 @@ class RequestsResponse(TypedDict):
     days: list[DailyRequests]
     window_7d: RequestWindow
     window_30d: RequestWindow
+
+
+class EndpointDay(TypedDict):
+    """One KST day of EVERY ``/api`` call, as the provider reads it.
+
+    Unlike ``DailyRequests`` nothing is filtered by intent: polling, failures,
+    API-token automation and anonymous calls all count, because the question
+    is load, not use. ``paths`` is keyed ``"<METHOD> <raw path>"`` — the route
+    folds raw paths onto their Flask rule, which both adapters would otherwise
+    have to repeat. ``users`` omits calls with no user_id, so
+    ``requests - sum(users)`` is the unattributed share.
+    """
+
+    date: str
+    requests: int
+    paths: dict[str, int]
+    users: dict[str, int]
+
+
+class EndpointStatsResponse(TypedDict):
+    """``VISITOR_DAYS`` KST days oldest first.
+
+    ``truncated`` means the office reader stopped paging before the end, so
+    the oldest days may be short; the page says so instead of drawing a dip.
+    """
+
+    generated_at: str
+    truncated: bool
+    days: list[EndpointDay]
 
 
 class FamilyUsageRow(TypedDict):

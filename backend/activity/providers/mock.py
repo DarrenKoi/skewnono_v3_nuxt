@@ -59,6 +59,8 @@ from ..._auth.provider import ANONYMOUS
 from ..._core.timefmt import iso_z as _iso
 from ..contracts import (
     DailyCount,
+    EndpointDay,
+    EndpointStatsResponse,
     FabUsageResponse,
     FabUsageRow,
     FamilyUsageResponse,
@@ -469,6 +471,92 @@ def get_request_stats() -> RequestsResponse:
         "window_7d": window_7d,
         "window_30d": window_30d,
     }
+
+
+# Raw "<METHOD> <path>" calls each page makes, for get_endpoint_stats. Real
+# routes with fabricated ids, so the route's Flask-rule folding runs at home
+# exactly as at the office. OFFICE-VERIFY: the mix and the polling volumes are
+# invented; only the route shapes are real.
+_MOCK_PAGE_CALLS: dict[str, tuple[str, ...]] = {
+    "recipe_search": (
+        "GET /api/cdsem/recipe-search/recipes",
+        "GET /api/cdsem/recipe-search/recipe-detail",
+        "GET /api/cdsem/recipe-search/parameters",
+        "GET /api/cdsem/recipe-search/align-images",
+    ),
+    "meas_hist": ("GET /api/meas-hist/search", "GET /api/meas-hist/facets"),
+    "fail_issue": (
+        "GET /api/cdsem/fail-issue/summary",
+        "GET /api/cdsem/fail-issue/daily-trend",
+    ),
+    "recipe_tat": (
+        "GET /api/hvsem/recipe-tat/summary",
+        "GET /api/hvsem/recipe-tat/ranking",
+    ),
+    "storage": ("GET /api/hvsem/storage", "GET /api/hvsem/ppid-unavailable"),
+    "hardware": (
+        "GET /api/hvsem/hardware/HV-SEM01/status",
+        "GET /api/hvsem/hardware/HV-SEM07/status",
+    ),
+    "device_statistics": ("GET /api/cdsem/device-statistics/recipe-statistics",),
+    "skewvoir": ("GET /api/msr-file", "POST /api/msr-images"),
+}
+
+
+def _mock_calls(feature: str, count: int, rng: random.Random) -> list[str]:
+    if feature == "afm":
+        # The gallery fan-out: one path per image, each one rare on its own.
+        return [
+            f"GET /api/afm/files/AFM_{rng.randrange(40):03d}.tif/image/P{rng.randrange(133)}"
+            for _ in range(count * 8)
+        ]
+    calls = _MOCK_PAGE_CALLS.get(feature, (f"GET /api/{feature.replace('_', '-')}",))
+    return [calls[i % len(calls)] for i in range(count)]
+
+
+def get_endpoint_stats() -> EndpointStatsResponse:
+    """Every /api call per KST day, fabricated from the seeded request rows.
+
+    Stands in for the office composite over all ``event=request`` rows. The
+    mock keeps no raw call log, so each stored feature request becomes its
+    page's calls (``_MOCK_PAGE_CALLS``), entry requests become sem-list loads,
+    and two kinds of traffic the usage store never sees are added: per-user
+    background calls (/me, /announcements, live-alarm polling) and an
+    unattributed health probe every five minutes. Deterministic per day.
+    """
+    today = _today()
+    rows: list[EndpointDay] = []
+    with _lock:
+        states = list(_identified_users(_users))
+        for day in chart_days(today):
+            rng = random.Random(f"endpoints-{day.isoformat()}")
+            paths: dict[str, int] = {}
+            users: dict[str, int] = {}
+            for state in states:
+                total = state.daily.get(day, 0)
+                if total <= 0:
+                    continue
+                features = state.daily_feature_requests.get(day, {})
+                calls = ["GET /api/sem-list"] * (total - sum(features.values()))
+                for feature, count in features.items():
+                    calls += _mock_calls(feature, count, rng)
+                calls += ["GET /api/me", "GET /api/announcements"] * rng.randint(2, 6)
+                if state.daily_features.get(day, {}).get("live_alarm"):
+                    calls += ["GET /api/cdsem/live-alarm"] * rng.randint(60, 240)
+                for call in calls:
+                    paths[call] = paths.get(call, 0) + 1
+                users[state.user_id] = len(calls)
+            probe = "GET /api/health/services"
+            paths[probe] = paths.get(probe, 0) + 288
+            rows.append(
+                {
+                    "date": day.isoformat(),
+                    "requests": sum(paths.values()),
+                    "paths": paths,
+                    "users": users,
+                }
+            )
+    return {"generated_at": _iso(_now()), "truncated": False, "days": rows}
 
 
 def get_users_list() -> UserListResponse:

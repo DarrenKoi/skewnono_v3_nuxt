@@ -167,6 +167,25 @@ export interface RequestsResponse {
   window_30d: RequestWindow
 }
 
+/** One KST day of every /api call — load, not intent (see DailyRequests). */
+export interface EndpointDay {
+  date: string
+  requests: number
+  /** "<METHOD> <Flask rule>" → calls, e.g. "GET /api/<tool_slug>/storage". */
+  endpoints: Record<string, number>
+  /** user_id → calls. Calls with no user are `requests − Σusers`. */
+  users: Record<string, number>
+}
+
+export interface EndpointsResponse {
+  generated_at: string
+  /** The office reader stopped paging early; the oldest days may be short. */
+  truncated: boolean
+  /** 90 KST days, oldest first, today last. */
+  days: EndpointDay[]
+  names: Record<string, { emp_nm: string | null, dept_nm: string | null }>
+}
+
 const ME_KEY = 'activity-me'
 const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
@@ -174,6 +193,7 @@ const FABS_KEY = 'activity-fabs'
 const FAMILIES_KEY = 'activity-families'
 const VISITORS_KEY = 'activity-visitors'
 const REQUESTS_KEY = 'activity-requests'
+const ENDPOINTS_KEY = 'activity-endpoints'
 
 const meSlot = createInFlightSlot<MeResponse>()
 const summarySlot = createInFlightSlot<SummaryResponse>()
@@ -182,6 +202,7 @@ const fabsSlot = createInFlightSlot<FabUsageResponse>()
 const familiesSlot = createInFlightSlot<FamilyUsageResponse>()
 const visitorsSlot = createInFlightSlot<VisitorsResponse>()
 const requestsSlot = createInFlightSlot<RequestsResponse>()
+const endpointsSlot = createInFlightSlot<EndpointsResponse>()
 
 const useActivityUrls = () => {
   const config = useRuntimeConfig()
@@ -194,6 +215,7 @@ const useActivityUrls = () => {
     familiesUrl: joinApiPath(base, '/activity/families'),
     visitorsUrl: joinApiPath(base, '/activity/visitors'),
     requestsUrl: joinApiPath(base, '/activity/requests'),
+    endpointsUrl: joinApiPath(base, '/activity/endpoints'),
     userDetailUrl: (userId: string) =>
       joinApiPath(base, `/activity/users/${encodeURIComponent(userId)}`)
   }
@@ -255,6 +277,14 @@ export const useActivityRequests = () => {
   })
 }
 
+export const useActivityEndpoints = () => {
+  const { endpointsUrl } = useActivityUrls()
+  const fetchOnce = () => endpointsSlot.run(() => $fetch<EndpointsResponse>(endpointsUrl))
+  return useAsyncData(ENDPOINTS_KEY, fetchOnce, {
+    getCachedData: payloadCacheOnInitial
+  })
+}
+
 // User detail is fetched on-demand (not cached via useAsyncData) because the
 // admin clicks individual rows ad hoc; each click is a fresh read.
 export const fetchUserHistory = async (userId: string): Promise<UserHistoryResponse> => {
@@ -271,10 +301,11 @@ export const resetActivityCache = () => {
   familiesSlot.reset()
   visitorsSlot.reset()
   requestsSlot.reset()
+  endpointsSlot.reset()
 }
 
 // Identity changes must also discard Nuxt's payload, not just the promises.
 export const clearActivityData = () => {
   resetActivityCache()
-  clearNuxtData([ME_KEY, SUMMARY_KEY, USERS_KEY, FABS_KEY, FAMILIES_KEY, VISITORS_KEY, REQUESTS_KEY])
+  clearNuxtData([ME_KEY, SUMMARY_KEY, USERS_KEY, FABS_KEY, FAMILIES_KEY, VISITORS_KEY, REQUESTS_KEY, ENDPOINTS_KEY])
 }
