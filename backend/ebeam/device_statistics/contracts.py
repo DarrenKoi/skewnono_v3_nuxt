@@ -28,6 +28,11 @@ __all__ = [
     "RuleCell",
     "Thresholds",
     "RuleVersion",
+    "FamilyToolType",
+    "FamilyStepRow",
+    "FamilyParamRow",
+    "FamilyRecipeStatusRow",
+    "FamilyActivityRow",
 ]
 
 
@@ -230,3 +235,67 @@ class RuleVersion(TypedDict):
     edited_at: str
     cells: list[RuleCell]
     thresholds: Thresholds
+
+
+# ── Rule 없는 장비 계열(HV-SEM / VeritySEM / Provision) ─────────────────────
+# 사무실 요청서 docs/office-migration/to-office-device-statistics-families-261102.md
+# 의 표 A~D 를 그대로 옮긴 것입니다. 사무실 어댑터는 이 모양으로 정규화하고, mock
+# (providers/family_tables.py)이 같은 모양을 냅니다. 화면·라우트는 아직 없습니다.
+#
+# 조인 키는 recipe_id 하나가 아니라 **(tool_type, recipe_id)** 입니다 — 계열이
+# 다르면 같은 이름이 다른 recipe 일 수 있습니다.
+
+FamilyToolType = Literal["hv-sem", "veritysem", "provision"]
+
+
+class FamilyStepRow(TypedDict):
+    """표 A — 한 계열·한 device 의 한 step. 정체성은 R3 에서
+    (tool_type, lot_cd, oper_seq, samp_seq) 이며 recipe_id 는 정체성이 아닙니다."""
+
+    tool_type: FamilyToolType
+    fac_id: str
+    lot_cd: str
+    oper_id: str
+    oper_desc: str
+    oper_seq: int | None   # M fab 은 None — Home 이 공정 접두사로 합성합니다
+    samp_seq: int | None
+    recipe_id: str
+    eqp_id: str
+    skip_yn: str           # "Y" / "N" / "" — R3 원천 값 그대로. M fab 은 ""
+    chg_tm: str            # offset 없는 KST wall-clock. M fab 은 ""
+
+
+class FamilyParamRow(TypedDict):
+    """표 B — 한 recipe 의 한 파라미터. param_seq 가 측정 순서입니다."""
+
+    tool_type: FamilyToolType
+    recipe_id: str
+    param_seq: int
+    param_name: str
+    param_type: str        # "" = 원천에 종류가 없음 (Q4)
+    point_count: int
+    mother: bool | None    # None = 그 계열에 mother 개념이 없거나 읽지 못함
+    region: int | None
+
+
+class FamilyRecipeStatusRow(TypedDict):
+    """표 C — 표 A 의 distinct (tool_type, recipe_id) 마다 정확히 한 행."""
+
+    tool_type: FamilyToolType
+    recipe_id: str
+    status: Literal["ok", "empty", "not_found", "failed"]
+    source_kind: Literal["idp", "measurement"]
+    source_ref: str        # ok/empty 면 필수, 그 외 ""
+    source_tm: str         # ok/empty 면 필수, 그 외 ""
+    note: str              # failed 면 필수, 그 외 ""
+
+
+class FamilyActivityRow(TypedDict):
+    """표 D — 한 계열·한 fab·한 device 의 최근 측정 건수."""
+
+    tool_type: FamilyToolType
+    fac_id: str
+    lot_cd: str
+    meas_count: int
+    window_days: int
+    as_of: str

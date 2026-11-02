@@ -40,8 +40,11 @@ office 어댑터가 두 이름을 모두 받아 줍니다.
 - 장비 계열: 실물의 R3 스텝 원천은 계열별 index 넷으로 갈라졌습니다 —
   sknn-planstep-r3-{cd,hv,verify,provision}, column 동일, 옛 sknn-planstep-r3 는
   업데이트 중단 (user-confirmed 2026-10-27, docs/datatables/hitachi/planstep_r3.txt).
-  이 mock 은 화면이 서비스하는 **CD-SEM(-cd) 하나만** 대역합니다. HV-SEM /
-  VeritySEM / Provision 스텝은 만들지 않습니다. AVIS/ICANS(이미지 처리 기반
+  이 모듈의 화면 경로는 **CD-SEM(-cd) 하나만** 대역합니다. HV-SEM /
+  VeritySEM / Provision 은 Rule 없는 별도 표 A~D 로 `family_tables.py` 가
+  만들고 여기서 재노출합니다(get_family_*, 화면·라우트는 아직 없음 —
+  docs/office-migration/to-office-device-statistics-families-261102.md).
+  CD-SEM 경로의 AVIS/ICANS(이미지 처리 기반
   측정, all 에만 들어가고 only_normal·only_sample 에서는 빠짐 —
   user-confirmed 2026-10-27)
   스텝명도 생성하지 않습니다. 실물에서 드물고, 어휘를 늘리면 rng 스트림이 밀려
@@ -343,6 +346,12 @@ from .snapshot_store import (  # noqa: E402  (의도된 후위 import)
     sweep_weekly_snapshots,
     write_weekly_snapshot,
 )
+from .family_tables import (  # noqa: E402  (의도된 후위 import)
+    get_family_activity,
+    get_family_params,
+    get_family_recipe_status,
+    get_family_steps,
+)
 
 
 __all__ = [
@@ -364,4 +373,8 @@ __all__ = [
     "_lot_index",
     "write_weekly_snapshot",
     "sweep_weekly_snapshots",
+    "get_family_steps",
+    "get_family_params",
+    "get_family_recipe_status",
+    "get_family_activity",
 ]
