@@ -192,12 +192,15 @@ _COMPOSITE_DAY_SOURCE: dict[str, Any] = {
 def _api_calls_query(
     start: datetime, now: datetime, *path_filters: dict[str, Any]
 ) -> dict[str, Any]:
-    """Every request row in range — no weight or kind filter: the endpoint
-    views measure load, which is exactly what _activity_filters drops."""
+    """Every API-token request row in range. The endpoint views show what
+    scripts call (user-confirmed 2026-11-03: token calls only), so no weight
+    or kind filter — token rows are always weight 0, which _activity_filters
+    would drop."""
     return {
         "bool": {
             "filter": [
                 {"term": {"event": "request"}},
+                {"exists": {"field": "api_token_id"}},
                 *path_filters,
                 _time_range(start, now),
             ]
@@ -724,11 +727,9 @@ class ActivityOpenSearchReader:
         )
 
     def get_endpoint_stats(self) -> EndpointStatsResponse:
-        """Every ``/api`` call per KST day, by method+path and by caller.
+        """Every API-token ``/api`` call per KST day, by method+path and by caller.
 
-        No ``_activity_filters``: those keep only weight-1 user intent, and
-        this view exists to see the load those filters hide (polling, failed
-        calls, tokens, anonymous). Composite rather than ``terms`` because raw
+        Composite rather than ``terms`` because raw
         paths carry ids — a per-day top-N would drop exactly the fan-out
         endpoints (AFM galleries) whose single paths are each rare.
         """

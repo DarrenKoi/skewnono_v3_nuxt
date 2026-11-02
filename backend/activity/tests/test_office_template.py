@@ -955,7 +955,9 @@ def test_endpoint_stats_page_both_composites_and_count_every_call():
     }
     # The second page resumes where the first stopped.
     assert search.bodies[1]["aggs"]["pairs"]["composite"]["after"] == {"day": "2026-07-27"}
-    # Load, not intent: no weight-1 filter.
+    # Token calls only, and no weight-1 filter (token rows are weight 0).
+    for body in search.bodies:
+        assert {"exists": {"field": "api_token_id"}} in body["query"]["bool"]["filter"]
     assert "activity_weight" not in str(search.bodies[0]["query"])
 
 
@@ -995,6 +997,7 @@ def test_endpoint_callers_filter_one_endpoint_and_keep_unattributed_calls():
     body = search.bodies[0]
     filters = body["query"]["bool"]["filter"]
     assert {"term": {"method": "GET"}} in filters
+    assert {"exists": {"field": "api_token_id"}} in filters
     assert {"regexp": {"path": {"value": "/api/[^/]+/storage"}}} in filters
     sources = body["aggs"]["pairs"]["composite"]["sources"]
     assert sources[-1] == {"user_id": {"terms": {"field": "user_id", "missing_bucket": True}}}

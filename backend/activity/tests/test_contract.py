@@ -52,6 +52,13 @@ def test_endpoint_stats_matches_contract():
     assert_matches(data.get_endpoint_stats(), EndpointStatsResponse)
 
 
+def test_mock_endpoint_stats_hold_no_admin_or_unattributed_calls():
+    # Token calls never carry admin rights and always carry the owner.
+    for day in data.get_endpoint_stats()["days"]:
+        assert sum(day["users"].values()) == day["requests"]
+        assert not any("/api/activity" in p or "/api/admin" in p for p in day["paths"])
+
+
 def test_endpoint_callers_matches_contract():
     assert_matches(
         data.get_endpoint_callers("GET", "/api/[^/]+/storage"),

@@ -291,10 +291,11 @@ not a quiet day. Production keeps 540 days and is unaffected.
 ### `GET /api/activity/endpoints`
 
 **Admin only** (`403 forbidden` otherwise). Feeds the `/admin/endpoints` page.
-The opposite population of `/requests`: **every** `event=request` row whose
-`path` starts with `/api/` — no `activity_weight` or kind filter — because the
-question is server load, so polling, failed calls, API-token and anonymous
-calls all count. Returns 90 KST days, each with `requests`, `endpoints`
+**API-token calls only** (user-confirmed 2026-11-03): every `event=request`
+row whose `path` starts with `/api/` and that carries `api_token_id` (an
+`exists` filter on the already-mapped keyword — no index change). No
+`activity_weight` or kind filter, because token rows are always weight 0, so
+the browser traffic `/requests` counts never appears here. Returns 90 KST days, each with `requests`, `endpoints`
 (`"<METHOD> <Flask rule>"` → calls) and `users` (`user_id` → calls; calls with
 no `user_id` are `requests − Σusers`), plus `names` from `lookup_members`.
 
@@ -313,14 +314,17 @@ the page count and the total latency have not been read; if the page answers
 503, raise the limit or log the Flask rule as a field of its own. The same
 30-day `_local` retention caveat as `/requests` applies.
 
-The mock fabricates calls from the seeded request rows (`_MOCK_PAGE_CALLS`,
-one real route per `feature_map` slug), plus background calls and an
-unattributed 5-minute health probe; volumes are `OFFICE-VERIFY`.
+The mock fabricates token calls from the seeded request rows: every third
+identified user owns a script that replays their day's pages
+(`_MOCK_PAGE_CALLS`, one real route per `feature_map` slug) 5–20 times over,
+skipping the admin and token-management slugs a token cannot call; who
+scripts and the volumes are `OFFICE-VERIFY`.
 
 ### `GET /api/activity/endpoints/callers?endpoint=<METHOD> <rule>`
 
 **Admin only.** Who called one endpoint, per KST day; `/admin/endpoints`
-fetches it when an endpoint is picked. The same population as `/endpoints`.
+fetches it when an endpoint is picked. The same population as `/endpoints`
+(token calls only).
 `endpoint` must be a real `/api` rule with that method in `url_map`, else
 `400` — the rule is turned into a Lucene `regexp` on `path` (`<path:x>` → `.+`,
 other placeholders → `[^/]+`, reserved characters escaped), so an arbitrary

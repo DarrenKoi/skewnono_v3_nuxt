@@ -16,10 +16,9 @@
             관리자 전용
           </UBadge>
         </h1>
-        <!-- The opposite scope of 요청 분석: that page keeps user intent only,
-             this one is the server's load, so everything counts. -->
+        <!-- Token calls only: 요청 분석 counts the browser, this page the scripts. -->
         <p class="sk-meta mt-1">
-          서버가 받은 모든 /api 호출 건수입니다. 백그라운드 갱신·실패한 요청·API Token·익명 호출까지 모두 셉니다. 경로의 id 부분은 하나의 엔드포인트로 묶습니다.
+          API Token으로 들어온 /api 호출만 셉니다. 화면에서 보낸 요청은 요청 분석에서 봅니다. 경로의 id 부분은 하나의 엔드포인트로 묶습니다.
         </p>
       </div>
       <div class="flex items-center gap-1">

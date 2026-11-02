@@ -530,41 +530,39 @@ def _mock_calls(feature: str, count: int, rng: random.Random) -> list[str]:
     return [calls[i % len(calls)] for i in range(count)]
 
 
+# Admin rights never ride on a token (docs/back-end/api-tokens.md §5.1) and
+# /account/api-tokens refuses token callers, so no script calls these.
+_NOT_SCRIPTED = frozenset({"activity", "admin_logs", "api_tokens"})
+
+
 def _mock_day_calls(states: list[_UserState], day: date) -> dict[tuple[str | None, str], int]:
-    """``(user_id or None, "<METHOD> <path>") → calls`` for one day. Lock held.
+    """``(user_id, "<METHOD> <path>") → calls`` for one day, token calls only. Lock held.
 
     The one generator both endpoint views read, so the per-endpoint caller
     split always adds up to the day totals. Deterministic per day.
+    OFFICE-VERIFY: which users script and how hard is invented — every third
+    identified user owns a script that replays the pages they used that day
+    5–20 times over; a token call always carries its owner's user_id.
     """
     rng = random.Random(f"endpoints-{day.isoformat()}")
     counts: dict[tuple[str | None, str], int] = {}
-    for state in states:
-        total = state.daily.get(day, 0)
-        if total <= 0:
-            continue
-        features = state.daily_feature_requests.get(day, {})
-        calls = ["GET /api/sem-list"] * (total - sum(features.values()))
-        for feature, count in features.items():
-            calls += _mock_calls(feature, count, rng)
-        calls += ["GET /api/me", "GET /api/announcements"] * rng.randint(2, 6)
-        if state.daily_features.get(day, {}).get("live_alarm"):
-            calls += ["GET /api/cdsem/live-alarm"] * rng.randint(60, 240)
-        for call in calls:
-            key = (state.user_id, call)
-            counts[key] = counts.get(key, 0) + 1
-    counts[(None, "GET /api/health/services")] = 288
+    for state in states[::3]:
+        for feature, count in state.daily_feature_requests.get(day, {}).items():
+            if feature in _NOT_SCRIPTED:
+                continue
+            for call in _mock_calls(feature, count * rng.randint(5, 20), rng):
+                key = (state.user_id, call)
+                counts[key] = counts.get(key, 0) + 1
     return counts
 
 
 def get_endpoint_stats() -> EndpointStatsResponse:
-    """Every /api call per KST day, fabricated from the seeded request rows.
+    """Every API-token /api call per KST day, fabricated from the seeded rows.
 
-    Stands in for the office composite over all ``event=request`` rows. The
-    mock keeps no raw call log, so each stored feature request becomes its
-    page's calls (``_MOCK_PAGE_CALLS``), entry requests become sem-list loads,
-    and two kinds of traffic the usage store never sees are added: per-user
-    background calls (/me, /announcements, live-alarm polling) and an
-    unattributed health probe every five minutes.
+    Stands in for the office composite over ``event=request`` rows that carry
+    ``api_token_id``. The mock keeps no raw call log, so ``_mock_day_calls``
+    turns the seeded feature requests of the users who own a script into
+    their pages' calls (``_MOCK_PAGE_CALLS``).
     """
     rows: list[EndpointDay] = []
     with _lock:
