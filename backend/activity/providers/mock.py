@@ -475,7 +475,9 @@ def get_request_stats() -> RequestsResponse:
 
 # Raw "<METHOD> <path>" calls each page makes, for get_endpoint_stats. Real
 # routes with fabricated ids, so the route's Flask-rule folding runs at home
-# exactly as at the office. OFFICE-VERIFY: the mix and the polling volumes are
+# exactly as at the office. Every slug feature_map can emit is listed (a test
+# checks each one matches a rule); an unknown slug falls to an /api path no
+# rule answers, which the page shows as (미등록 경로) rather than guessing. OFFICE-VERIFY: the mix and the polling volumes are
 # invented; only the route shapes are real.
 _MOCK_PAGE_CALLS: dict[str, tuple[str, ...]] = {
     "recipe_search": (
@@ -500,6 +502,17 @@ _MOCK_PAGE_CALLS: dict[str, tuple[str, ...]] = {
     ),
     "device_statistics": ("GET /api/cdsem/device-statistics/recipe-statistics",),
     "skewvoir": ("GET /api/msr-file", "POST /api/msr-images"),
+    "sem_list": ("GET /api/sem-list",),
+    "live_alarm": ("GET /api/cdsem/live-alarm",),
+    "skew_check": ("GET /api/cdsem/tttm/check", "GET /api/cdsem/tttm/recipes"),
+    "pm_planning": ("GET /api/cdsem/pm-planning/fleet",),
+    "tool_files": ("GET /api/cdsem/tool-files/list",),
+    "short_links": ("POST /api/short-links",),
+    "announcements": ("GET /api/announcements",),
+    "health": ("GET /api/health/services",),
+    "api_tokens": ("GET /api/account/api-tokens",),
+    "activity": ("GET /api/activity/summary",),
+    "admin_logs": ("GET /api/admin/logs",),
 }
 
 

@@ -946,7 +946,6 @@ def test_endpoint_stats_page_both_composites_and_count_every_call():
 
     payload = reader.get_endpoint_stats()
 
-    assert payload["truncated"] is False
     assert len(payload["days"]) == 90
     assert payload["days"][-1] == {
         "date": "2026-07-27",
@@ -958,3 +957,14 @@ def test_endpoint_stats_page_both_composites_and_count_every_call():
     assert search.bodies[1]["aggs"]["pairs"]["composite"]["after"] == {"day": "2026-07-27"}
     # Load, not intent: no weight-1 filter.
     assert "activity_weight" not in str(search.bodies[0]["query"])
+
+
+def test_endpoint_stats_refuse_a_cut_rather_than_zero_the_newest_days(monkeypatch):
+    from backend.activity.providers import opensearch_reader
+
+    monkeypatch.setattr(opensearch_reader, "ENDPOINT_PAGE_LIMIT", 1)
+    endless = {"aggregations": {"pairs": {"buckets": [], "after_key": {"day": "x"}}}}
+    reader, _search, _aliases = _reader([endless])
+
+    with pytest.raises(RuntimeError, match="composite pages"):
+        reader.get_endpoint_stats()

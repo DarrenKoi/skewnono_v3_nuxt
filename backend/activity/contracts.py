@@ -257,14 +257,9 @@ class EndpointDay(TypedDict):
 
 
 class EndpointStatsResponse(TypedDict):
-    """``VISITOR_DAYS`` KST days oldest first.
-
-    ``truncated`` means the office reader stopped paging before the end, so
-    the oldest days may be short; the page says so instead of drawing a dip.
-    """
+    """``VISITOR_DAYS`` KST days oldest first."""
 
     generated_at: str
-    truncated: bool
     days: list[EndpointDay]
 
 

@@ -168,7 +168,6 @@ def _endpoint_stats():
     members = lookup_members({uid for day in days for uid in day["users"]})
     return {
         "generated_at": payload["generated_at"],
-        "truncated": payload["truncated"],
         "days": days,
         "names": {
             uid: {"emp_nm": member.get("emp_nm"), "dept_nm": member.get("dept_nm")}

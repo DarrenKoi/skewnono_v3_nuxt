@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { EndpointDay } from '~/composables/useActivityApi'
-import { OTHER_ENDPOINTS, UNATTRIBUTED, buildEndpointsOption, endpointKpis, topCallers, topEndpoints } from './activityEndpoints.ts'
+import { OTHER_CALLERS, OTHER_ENDPOINTS, UNATTRIBUTED, buildEndpointsOption, endpointKpis, topCallers, topEndpoints } from './activityEndpoints.ts'
 
 const DAYS: EndpointDay[] = [
   { date: '2026-11-01', requests: 10, endpoints: { 'GET /api/a': 6, 'POST /api/b': 4 }, users: { u1: 7 } },
@@ -22,11 +22,12 @@ test('calls with no user become one ranked unattributed row', () => {
 })
 
 test('the stacked bands add up to each day total', () => {
-  const option = buildEndpointsOption(DAYS)
-  const bands = option.series as { name: string, data: number[] }[]
-  assert.equal(bands.at(-1)!.name, OTHER_ENDPOINTS)
-  for (const [index, day] of DAYS.entries()) {
-    assert.equal(bands.reduce((total, band) => total + band.data[index]!, 0), day.requests)
+  for (const axis of ['endpoints', 'users'] as const) {
+    const bands = buildEndpointsOption(DAYS, axis).series as { name: string, data: number[] }[]
+    assert.equal(bands.at(-1)!.name, axis === 'endpoints' ? OTHER_ENDPOINTS : OTHER_CALLERS)
+    for (const [index, day] of DAYS.entries()) {
+      assert.equal(bands.reduce((total, band) => total + band.data[index]!, 0), day.requests)
+    }
   }
 })
 
@@ -34,4 +35,11 @@ test('KPIs read today and the trailing windows from the one series', () => {
   const [today, week] = endpointKpis(DAYS)
   assert.equal(today!.value, '5')
   assert.equal(week!.value, '15')
+})
+
+test('the tooltip escapes a Flask rule so its <params> survive innerHTML', () => {
+  const days: EndpointDay[] = [{ date: '2026-11-02', requests: 1, endpoints: { 'GET /api/<tool_slug>/storage': 1 }, users: {} }]
+  const { tooltip } = buildEndpointsOption(days) as { tooltip: { formatter: (p: unknown) => string } }
+  const html = tooltip.formatter([{ dataIndex: 0, seriesName: 'GET /api/<tool_slug>/storage', value: 1 }])
+  assert.match(html, /&lt;tool_slug&gt;/)
 })

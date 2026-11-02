@@ -54,9 +54,10 @@ VISITOR_PAGE_SIZE = SEARCH_MAX_BUCKETS // (VISITOR_LOOKBACK_DAYS + 1)
 CARDINALITY_PRECISION = 40000
 # ponytail: a hard page cap on the endpoint composites. Raw paths carry ids
 # (AFM filenames, eqp_ids), so (day, method, path) pairs grow with traffic;
-# 100 pages x 1000 is far above today's volume, and hitting it is reported
-# as `truncated` rather than silently shortening the oldest days. Raise it,
-# or log the Flask rule as its own field, if the page ever says truncated.
+# 100 pages x 1000 is far above today's volume. Hitting it raises (503), never
+# a partial answer: composite pages run oldest day first, so a cut would zero
+# the NEWEST days and read as a drop in load. Raise the cap, or log the Flask
+# rule as its own field, if the page ever reports it.
 ENDPOINT_PAGE_LIMIT = 100
 
 # Two units share one index. Request rows answer "how much work happened";
@@ -668,9 +669,8 @@ class ActivityOpenSearchReader:
         self,
         query: dict[str, Any],
         sources: list[dict[str, Any]],
-    ) -> tuple[list[dict[str, Any]], bool]:
-        """Every composite bucket for ``sources``, and whether paging stopped
-        at ``ENDPOINT_PAGE_LIMIT`` before the end."""
+    ) -> list[dict[str, Any]]:
+        """Every composite bucket for ``sources``; raises past ``ENDPOINT_PAGE_LIMIT``."""
         buckets: list[dict[str, Any]] = []
         after_key: dict[str, Any] | None = None
         for _ in range(ENDPOINT_PAGE_LIMIT):
@@ -687,8 +687,10 @@ class ActivityOpenSearchReader:
             buckets.extend(pairs.get("buckets", []))
             after_key = pairs.get("after_key")
             if not after_key:
-                return buckets, False
-        return buckets, True
+                return buckets
+        raise RuntimeError(
+            f"endpoint stats exceeded {ENDPOINT_PAGE_LIMIT} composite pages"
+        )
 
     def get_endpoint_stats(self) -> EndpointStatsResponse:
         """Every ``/api`` call per KST day, by method+path and by caller.
@@ -720,7 +722,7 @@ class ActivityOpenSearchReader:
                 }
             }
         }
-        path_buckets, paths_cut = self._composite_pages(
+        path_buckets = self._composite_pages(
             query,
             [
                 day_source,
@@ -728,7 +730,7 @@ class ActivityOpenSearchReader:
                 {"path": {"terms": {"field": "path"}}},
             ],
         )
-        user_buckets, users_cut = self._composite_pages(
+        user_buckets = self._composite_pages(
             query,
             [day_source, {"user_id": {"terms": {"field": "user_id"}}}],
         )
@@ -758,7 +760,6 @@ class ActivityOpenSearchReader:
                 row["users"][str(key["user_id"])] = int(bucket.get("doc_count", 0))
         return {
             "generated_at": _iso_utc(now),
-            "truncated": paths_cut or users_cut,
             "days": list(rows.values()),
         }
 

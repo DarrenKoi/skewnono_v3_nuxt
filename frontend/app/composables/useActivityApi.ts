@@ -179,8 +179,6 @@ export interface EndpointDay {
 
 export interface EndpointsResponse {
   generated_at: string
-  /** The office reader stopped paging early; the oldest days may be short. */
-  truncated: boolean
   /** 90 KST days, oldest first, today last. */
   days: EndpointDay[]
   names: Record<string, { emp_nm: string | null, dept_nm: string | null }>

@@ -61,14 +61,6 @@
         :description="loadError"
         :actions="[{ label: '다시 시도', onClick: refreshAll }]"
       />
-      <UAlert
-        v-if="stats?.truncated"
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-triangle-alert"
-        title="기록이 많아 일부만 집계했습니다."
-        description="가장 오래된 날짜의 수치가 실제보다 적을 수 있습니다."
-      />
 
       <section
         v-if="days.length"
@@ -91,17 +83,29 @@
             <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
               <UIcon name="i-lucide-chart-column-stacked" />
               일별 호출 추이
-              <span class="sk-meta font-normal">· 기간 내 상위 5개 엔드포인트 + 기타, KST 기준, 오늘은 진행 중</span>
+              <span class="sk-meta font-normal">· 기간 내 상위 5개 + 기타, KST 기준, 오늘은 진행 중</span>
             </span>
-            <UTabs
-              v-model="windowKey"
-              :items="VISITOR_WINDOW_TABS"
-              variant="pill"
-              size="xs"
-            />
+            <div class="flex items-center gap-2">
+              <UTabs
+                v-model="trendAxis"
+                :items="TREND_AXIS_TABS"
+                variant="pill"
+                size="xs"
+              />
+              <UTabs
+                v-model="windowKey"
+                :items="VISITOR_WINDOW_TABS"
+                variant="pill"
+                size="xs"
+              />
+            </div>
           </div>
         </template>
-        <ActivityEndpointsChart :series="windowDays" />
+        <ActivityEndpointsChart
+          :series="windowDays"
+          :axis="trendAxis"
+          :names="stats?.names ?? {}"
+        />
       </UCard>
 
       <!-- Both rankings follow the chart's tab, so the three cards always
@@ -143,7 +147,7 @@
 
 <script setup lang="ts">
 import { resetActivityCache, useActivityEndpoints } from '~/composables/useActivityApi'
-import { endpointKpis, topCallers, topEndpoints } from '~/utils/activityEndpoints'
+import { TREND_AXIS_TABS, endpointKpis, topCallers, topEndpoints, type TrendAxis } from '~/utils/activityEndpoints'
 import { VISITOR_WINDOW_TABS, visitorWindow, type VisitorWindowKey } from '~/utils/activityVisitors'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
@@ -172,6 +176,7 @@ const refreshAll = async () => {
 const kpiCards = computed(() => endpointKpis(days.value))
 
 const windowKey = ref<VisitorWindowKey>('1m')
+const trendAxis = ref<TrendAxis>('endpoints')
 const windowDays = computed(() => visitorWindow(days.value, windowKey.value))
 const windowLabel = computed(() => VISITOR_WINDOW_TABS.find(tab => tab.value === windowKey.value)?.label ?? '')
 

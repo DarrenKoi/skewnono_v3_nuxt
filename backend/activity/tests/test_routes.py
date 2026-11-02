@@ -37,7 +37,7 @@ def make_client(monkeypatch):
     monkeypatch.setattr(
         routes,
         "get_endpoint_stats",
-        lambda: {"generated_at": "x", "truncated": False, "days": []},
+        lambda: {"generated_at": "x", "days": []},
     )
 
     def build(user_id, identity_source):
@@ -387,7 +387,6 @@ def test_endpoint_stats_fold_raw_paths_onto_their_flask_rule(monkeypatch):
         "get_endpoint_stats",
         lambda: {
             "generated_at": "x",
-            "truncated": False,
             "days": [
                 {
                     "date": "2026-11-02",
@@ -423,3 +422,18 @@ def test_endpoint_stats_fold_raw_paths_onto_their_flask_rule(monkeypatch):
         routes.UNMATCHED_ENDPOINT: 1,
     }
     assert body["names"] == {"111": {"emp_nm": "홍길동", "dept_nm": None}}
+
+
+def test_every_mock_page_call_is_a_real_route():
+    """The mock's fabricated calls must fold onto rules, or home shows
+    ordinary traffic as (미등록 경로)."""
+    from backend import create_app
+    from backend._logging.feature_map import _FEATURE_RULES
+    import random
+
+    app = create_app()
+    adapter = app.url_map.bind("localhost")
+    rng = random.Random(0)
+    for slug in {slug for _prefix, slug in _FEATURE_RULES}:
+        for call in mock._mock_calls(slug, 3, rng):
+            assert routes._endpoint_of(adapter, call) != routes.UNMATCHED_ENDPOINT, call

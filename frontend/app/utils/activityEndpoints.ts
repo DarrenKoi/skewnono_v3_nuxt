@@ -2,6 +2,7 @@ import type { EChartsOption } from 'echarts'
 import { userDisplayName, userTeamLabel } from './activity.ts'
 import { dayHeading, visitorAxisLabel, type CountRow } from './activityVisitors.ts'
 import { CHART_AXIS_LABEL } from './chartType.ts'
+import { escapeHtml } from './html.ts'
 import type { EndpointDay, EndpointsResponse } from '~/composables/useActivityApi'
 
 /**
@@ -11,6 +12,7 @@ import type { EndpointDay, EndpointsResponse } from '~/composables/useActivityAp
  */
 
 export const OTHER_ENDPOINTS = '기타'
+export const OTHER_CALLERS = '기타 (미식별 포함)'
 export const UNATTRIBUTED = '미식별 (사번 없음)'
 const CHART_SERIES = 5
 
@@ -40,12 +42,15 @@ export const topEndpoints = (days: readonly EndpointDay[]): CountRow[] =>
 /** Callers, most calls first. Calls with no user_id (health probes, calls
  *  before identity ran) are one row of their own, ranked like the rest, so a
  *  large unattributed share is visible instead of silently missing. */
+const memberOf = (userId: string, names: EndpointsResponse['names']) =>
+  ({ user_id: userId, emp_nm: names[userId]?.emp_nm ?? null, dept_nm: names[userId]?.dept_nm ?? null })
+
 export const topCallers = (
   days: readonly EndpointDay[],
   names: EndpointsResponse['names']
 ): CountRow[] => {
   const rows: CountRow[] = sumBy(days, day => day.users).map(([userId, count]) => {
-    const member = { user_id: userId, emp_nm: names[userId]?.emp_nm ?? null, dept_nm: names[userId]?.dept_nm ?? null }
+    const member = memberOf(userId, names)
     return { label: userDisplayName(member), hint: userTeamLabel(member), count }
   })
   const attributed = rows.reduce((total, row) => total + row.count, 0)
@@ -81,15 +86,29 @@ export const endpointKpis = (days: readonly EndpointDay[]) => [
   }
 ].map(kpi => ({ ...kpi, color: 'text-(--sk-ink-muted)' }))
 
-/** The window's top endpoints as stacked bars, the rest as one 기타 band, so
- *  each bar's height is still that day's whole call count. */
-export const buildEndpointsOption = (series: readonly EndpointDay[]): EChartsOption => {
-  const top = sumBy(series, day => day.endpoints).slice(0, CHART_SERIES).map(([key]) => key)
+export type TrendAxis = 'endpoints' | 'users'
+
+export const TREND_AXIS_TABS: { label: string, value: TrendAxis }[] = [
+  { label: '엔드포인트별', value: 'endpoints' },
+  { label: '사용자별', value: 'users' }
+]
+
+/** The window's top five endpoints (or callers) as stacked bars, the rest as
+ *  one band, so each bar's height is still that day's whole call count. For
+ *  callers the rest includes calls with no user, which no top band can hold. */
+export const buildEndpointsOption = (
+  series: readonly EndpointDay[],
+  axis: TrendAxis = 'endpoints',
+  names: EndpointsResponse['names'] = {}
+): EChartsOption => {
+  const pick = (day: EndpointDay) => (axis === 'endpoints' ? day.endpoints : day.users)
+  const top = sumBy(series, pick).slice(0, CHART_SERIES).map(([key]) => key)
+  const label = (key: string) => (axis === 'endpoints' ? key : userDisplayName(memberOf(key, names)))
   const bands = [
-    ...top.map(key => ({ name: key, data: series.map(day => day.endpoints[key] ?? 0) })),
+    ...top.map(key => ({ name: label(key), data: series.map(day => pick(day)[key] ?? 0) })),
     {
-      name: OTHER_ENDPOINTS,
-      data: series.map(day => day.requests - top.reduce((total, key) => total + (day.endpoints[key] ?? 0), 0))
+      name: axis === 'endpoints' ? OTHER_ENDPOINTS : OTHER_CALLERS,
+      data: series.map(day => day.requests - top.reduce((total, key) => total + (pick(day)[key] ?? 0), 0))
     }
   ]
   return {
@@ -102,9 +121,11 @@ export const buildEndpointsOption = (series: readonly EndpointDay[]): EChartsOpt
         const list = (Array.isArray(params) ? params : [params]) as { dataIndex?: number, seriesName?: string, value?: unknown, marker?: string }[]
         const day = series[list[0]?.dataIndex ?? -1]
         if (!day) return ''
+        // Escaped: a Flask rule's <tool_slug> would otherwise be parsed as a
+        // tag by the tooltip's innerHTML and vanish from the path.
         const lines = list
           .filter(item => Number(item.value) > 0)
-          .map(item => `${item.marker ?? ''}${item.seriesName} ${Number(item.value).toLocaleString()}건`)
+          .map(item => `${item.marker ?? ''}${escapeHtml(item.seriesName ?? '')} ${Number(item.value).toLocaleString()}건`)
         return `${dayHeading(day.date)} · 전체 ${day.requests.toLocaleString()}건<br>${lines.join('<br>')}`
       }
     },
