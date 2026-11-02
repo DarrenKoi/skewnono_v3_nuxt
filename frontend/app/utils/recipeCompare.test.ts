@@ -138,6 +138,13 @@ test('buildSettingRows aligns values per recipe and flags differing rows', () =>
   assert.equal(algo.differs, false)
 })
 
+test('buildSettingRows hides the AMP cursor coordinate lists', () => {
+  const rows = buildSettingRows([
+    detailWith({ Mag: '50.0K', Cursor_Positions: '1,2;3,4', MP_Cursor_Positions: '5,6' })
+  ], 'img_meas1')
+  assert.deepEqual(rows.map(r => r.key), ['Mag'])
+})
+
 test('buildSettingRows shows 없음 when a recipe has no settings for the cell', () => {
   const rows = buildSettingRows([detailWith({ Mag: '50.0K' }), null], 'img_meas1')
   assert.equal(rows.find(r => r.key === 'Mag')!.values[1], '없음')

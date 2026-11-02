@@ -57,6 +57,11 @@ export interface ImageSlot {
   hasImage: boolean
 }
 
+// Cursor coordinate lists run to hundreds of entries and mean nothing read as
+// text — the server already turns them into measurement marks on the image.
+// Hidden on recipe-open (AmpSettings) and recipe compare (buildSettingRows) alike.
+export const HIDDEN_AMP_KEYS: ReadonlySet<string> = new Set(['Cursor_Positions', 'MP_Cursor_Positions'])
+
 export const IMAGE_SLOTS: readonly ImageSlot[] = [
   { key: 'img_add1', label: 'img_add1', role: 'address', stage: 'Addressing 1', hasImage: true },
   { key: 'img_add2', label: 'img_add2', role: 'address', stage: 'Addressing 2', hasImage: false },

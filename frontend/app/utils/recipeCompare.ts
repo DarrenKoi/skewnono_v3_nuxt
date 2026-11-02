@@ -1,6 +1,6 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
 import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRecipeParamDetail.ts'
-import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
+import { HIDDEN_AMP_KEYS, IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
 import { imageVariantLabels } from './imageKind.ts'
 import { recipePairKey } from './recipePair.ts'
 import { createWorkbook, writeWorkbook, type WorkbookSheet } from './xlsx.ts'
@@ -246,6 +246,7 @@ export function buildSettingRows(
   const seen = new Map<string, SettingRow>()
   for (const block of blocks) {
     for (const row of block?.rows ?? []) {
+      if (HIDDEN_AMP_KEYS.has(row.key)) continue
       const id = settingRowId(row)
       if (!seen.has(id)) {
         ids.push(id)

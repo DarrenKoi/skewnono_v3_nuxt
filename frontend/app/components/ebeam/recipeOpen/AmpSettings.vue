@@ -33,7 +33,7 @@
  * (office 확인 2026-10-22).
  */
 import type { ParamDetail, SettingBlock } from '~/composables/useRecipeParamDetail'
-import { resolveFormula } from '~/utils/recipeView'
+import { HIDDEN_AMP_KEYS, resolveFormula } from '~/utils/recipeView'
 
 const props = defineProps<{
   detail: ParamDetail | null
@@ -42,10 +42,6 @@ const props = defineProps<{
   /** P_No → Parameter from wafer_mp_info, what a formula's `$N` names (`formulaRefNames`). */
   refNames: ReadonlyMap<number, string>
 }>()
-
-// Cursor coordinate lists run to hundreds of entries and mean nothing read as
-// text — the server already turns them into measurement marks on the image.
-const HIDDEN_AMP_KEYS = new Set(['Cursor_Positions', 'MP_Cursor_Positions'])
 
 const ampBlock = computed<SettingBlock | null>(() => {
   const amp = props.detail?.amp
