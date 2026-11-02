@@ -317,6 +317,27 @@ The mock fabricates calls from the seeded request rows (`_MOCK_PAGE_CALLS`,
 one real route per `feature_map` slug), plus background calls and an
 unattributed 5-minute health probe; volumes are `OFFICE-VERIFY`.
 
+### `GET /api/activity/endpoints/callers?endpoint=<METHOD> <rule>`
+
+**Admin only.** Who called one endpoint, per KST day; `/admin/endpoints`
+fetches it when an endpoint is picked. The same population as `/endpoints`.
+`endpoint` must be a real `/api` rule with that method in `url_map`, else
+`400` — the rule is turned into a Lucene `regexp` on `path` (`<path:x>` → `.+`,
+other placeholders → `[^/]+`, reserved characters escaped), so an arbitrary
+string never reaches the cluster. The pattern is loose on purpose (it also
+catches `/afm/files/<path:f>/images.zip` for `/afm/files/<path:f>`); the route
+folds every returned raw path back through `url_map` and keeps only those of
+the requested rule. Returns the `/endpoints` day shape with `endpoints` empty.
+
+The office reader runs one composite (`day × path × user_id`, `missing_bucket`
+on `user_id` so calls with no user survive as the unattributed share), filtered
+by a `method` term and the `regexp`; the same `ENDPOINT_PAGE_LIMIT` 503 applies.
+`OFFICE-VERIFY`: `regexp` is refused when the cluster sets
+`search.allow_expensive_queries=false` (the page would show the 503), and its
+cost on the production alias has not been measured. The mock reads the same
+per-day call generator as `/endpoints`, so a caller split always adds up to the
+endpoint's totals.
+
 ### `GET /api/activity/users/<user_id>`
 
 **Admin only** (`403 forbidden` otherwise). Returns the personal history shape.
