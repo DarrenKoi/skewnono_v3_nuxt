@@ -48,6 +48,7 @@ exclude legacy anonymous state, matching the office reader's source/ID filter
 from __future__ import annotations
 
 import random
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -59,6 +60,8 @@ from ..._auth.provider import ANONYMOUS
 from ..._core.timefmt import iso_z as _iso
 from ..contracts import (
     DailyCount,
+    EndpointCallerDay,
+    EndpointCallersResponse,
     EndpointDay,
     EndpointStatsResponse,
     FabUsageResponse,
@@ -527,6 +530,32 @@ def _mock_calls(feature: str, count: int, rng: random.Random) -> list[str]:
     return [calls[i % len(calls)] for i in range(count)]
 
 
+def _mock_day_calls(states: list[_UserState], day: date) -> dict[tuple[str | None, str], int]:
+    """``(user_id or None, "<METHOD> <path>") → calls`` for one day. Lock held.
+
+    The one generator both endpoint views read, so the per-endpoint caller
+    split always adds up to the day totals. Deterministic per day.
+    """
+    rng = random.Random(f"endpoints-{day.isoformat()}")
+    counts: dict[tuple[str | None, str], int] = {}
+    for state in states:
+        total = state.daily.get(day, 0)
+        if total <= 0:
+            continue
+        features = state.daily_feature_requests.get(day, {})
+        calls = ["GET /api/sem-list"] * (total - sum(features.values()))
+        for feature, count in features.items():
+            calls += _mock_calls(feature, count, rng)
+        calls += ["GET /api/me", "GET /api/announcements"] * rng.randint(2, 6)
+        if state.daily_features.get(day, {}).get("live_alarm"):
+            calls += ["GET /api/cdsem/live-alarm"] * rng.randint(60, 240)
+        for call in calls:
+            key = (state.user_id, call)
+            counts[key] = counts.get(key, 0) + 1
+    counts[(None, "GET /api/health/services")] = 288
+    return counts
+
+
 def get_endpoint_stats() -> EndpointStatsResponse:
     """Every /api call per KST day, fabricated from the seeded request rows.
 
@@ -535,32 +564,18 @@ def get_endpoint_stats() -> EndpointStatsResponse:
     page's calls (``_MOCK_PAGE_CALLS``), entry requests become sem-list loads,
     and two kinds of traffic the usage store never sees are added: per-user
     background calls (/me, /announcements, live-alarm polling) and an
-    unattributed health probe every five minutes. Deterministic per day.
+    unattributed health probe every five minutes.
     """
-    today = _today()
     rows: list[EndpointDay] = []
     with _lock:
         states = list(_identified_users(_users))
-        for day in chart_days(today):
-            rng = random.Random(f"endpoints-{day.isoformat()}")
+        for day in chart_days(_today()):
             paths: dict[str, int] = {}
             users: dict[str, int] = {}
-            for state in states:
-                total = state.daily.get(day, 0)
-                if total <= 0:
-                    continue
-                features = state.daily_feature_requests.get(day, {})
-                calls = ["GET /api/sem-list"] * (total - sum(features.values()))
-                for feature, count in features.items():
-                    calls += _mock_calls(feature, count, rng)
-                calls += ["GET /api/me", "GET /api/announcements"] * rng.randint(2, 6)
-                if state.daily_features.get(day, {}).get("live_alarm"):
-                    calls += ["GET /api/cdsem/live-alarm"] * rng.randint(60, 240)
-                for call in calls:
-                    paths[call] = paths.get(call, 0) + 1
-                users[state.user_id] = len(calls)
-            probe = "GET /api/health/services"
-            paths[probe] = paths.get(probe, 0) + 288
+            for (user_id, call), count in _mock_day_calls(states, day).items():
+                paths[call] = paths.get(call, 0) + count
+                if user_id is not None:
+                    users[user_id] = users.get(user_id, 0) + count
             rows.append(
                 {
                     "date": day.isoformat(),
@@ -569,7 +584,29 @@ def get_endpoint_stats() -> EndpointStatsResponse:
                     "users": users,
                 }
             )
-    return {"generated_at": _iso(_now()), "truncated": False, "days": rows}
+    return {"generated_at": _iso(_now()), "days": rows}
+
+
+def get_endpoint_callers(method: str, path_pattern: str) -> EndpointCallersResponse:
+    """Who made the calls matching ``method`` + ``path_pattern``, per day.
+
+    The pattern is the route's Lucene regexp; its syntax here (``[^/]+``,
+    ``.+``, backslash-escaped punctuation) means the same to Python's ``re``.
+    """
+    pattern = re.compile(path_pattern)
+    rows: list[EndpointCallerDay] = []
+    with _lock:
+        states = list(_identified_users(_users))
+        for day in chart_days(_today()):
+            calls: dict[str, dict[str, int]] = {}
+            for (user_id, call), count in _mock_day_calls(states, day).items():
+                call_method, _, path = call.partition(" ")
+                if call_method == method and pattern.fullmatch(path):
+                    by_user = calls.setdefault(path, {})
+                    key = user_id or ""
+                    by_user[key] = by_user.get(key, 0) + count
+            rows.append({"date": day.isoformat(), "paths": calls})
+    return {"generated_at": _iso(_now()), "days": rows}
 
 
 def get_users_list() -> UserListResponse:

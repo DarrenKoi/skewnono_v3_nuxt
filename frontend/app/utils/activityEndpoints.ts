@@ -28,12 +28,15 @@ const sumBy = (days: readonly EndpointDay[], pick: (day: EndpointDay) => Record<
   return [...totals].sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
 }
 
+/** "<METHOD> <rule>"; anything else (the unmatched bucket) is not a rule. */
+const ENDPOINT_KEY = /^([A-Z]+) (\/.*)$/
+
 /** "GET /api/x" → label "/api/x", hint "GET". */
 const endpointRow = (key: string, count: number): CountRow => {
-  const space = key.indexOf(' ')
-  return space < 0
-    ? { label: key, count }
-    : { label: key.slice(space + 1), hint: key.slice(0, space), title: key, count }
+  const match = ENDPOINT_KEY.exec(key)
+  return match
+    ? { label: match[2]!, hint: match[1]!, title: key, count }
+    : { label: key, count }
 }
 
 export const topEndpoints = (days: readonly EndpointDay[]): CountRow[] =>
@@ -44,6 +47,12 @@ export const topEndpoints = (days: readonly EndpointDay[]): CountRow[] =>
  *  large unattributed share is visible instead of silently missing. */
 const memberOf = (userId: string, names: EndpointsResponse['names']) =>
   ({ user_id: userId, emp_nm: names[userId]?.emp_nm ?? null, dept_nm: names[userId]?.dept_nm ?? null })
+
+/** Endpoints the 호출자 menu offers, busiest in the window first. The
+ *  unmatched bucket is left out: it is no single rule, so there is nobody
+ *  to ask about it. */
+export const endpointChoices = (days: readonly EndpointDay[]): string[] =>
+  sumBy(days, day => day.endpoints).map(([key]) => key).filter(key => ENDPOINT_KEY.test(key))
 
 export const topCallers = (
   days: readonly EndpointDay[],

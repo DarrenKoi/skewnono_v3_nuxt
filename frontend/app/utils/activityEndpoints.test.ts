@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { EndpointDay } from '~/composables/useActivityApi'
-import { OTHER_CALLERS, OTHER_ENDPOINTS, UNATTRIBUTED, buildEndpointsOption, endpointKpis, topCallers, topEndpoints } from './activityEndpoints.ts'
+import { endpointChoices, OTHER_CALLERS, OTHER_ENDPOINTS, UNATTRIBUTED, buildEndpointsOption, endpointKpis, topCallers, topEndpoints } from './activityEndpoints.ts'
 
 const DAYS: EndpointDay[] = [
   { date: '2026-11-01', requests: 10, endpoints: { 'GET /api/a': 6, 'POST /api/b': 4 }, users: { u1: 7 } },
@@ -49,4 +49,14 @@ test('namesakes stay two series, keyed by employee number', () => {
   const names = { 111: { emp_nm: '김민수', dept_nm: null }, 222: { emp_nm: '김민수', dept_nm: null } }
   const bands = buildEndpointsOption(days, 'users', names).series as { name: string }[]
   assert.deepEqual(bands.map(band => band.name).slice(0, 2), ['김민수 · 111', '김민수 · 222'])
+})
+
+test('the caller menu lists rules busiest first and never the unmatched bucket', () => {
+  const days: EndpointDay[] = [{ date: '2026-11-02', requests: 9, endpoints: { 'GET /api/a': 1, '(미등록 경로)': 5, 'GET /api/b': 3 }, users: {} }]
+  assert.deepEqual(endpointChoices(days), ['GET /api/b', 'GET /api/a'])
+})
+
+test('the unmatched bucket is a plain label, not split into a method', () => {
+  const days: EndpointDay[] = [{ date: '2026-11-02', requests: 5, endpoints: { '(미등록 경로)': 5 }, users: {} }]
+  assert.deepEqual(topEndpoints(days), [{ label: '(미등록 경로)', count: 5 }])
 })

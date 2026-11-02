@@ -12,6 +12,8 @@ from backend._core.timefmt import iso_z
 from backend._logging.target import resolve_logging_target
 from backend.activity.contracts import (
     DailyCount,
+    EndpointCallerDay,
+    EndpointCallersResponse,
     EndpointDay,
     EndpointStatsResponse,
     FabUsageResponse,
@@ -172,6 +174,35 @@ def _activity_filters(
     if user_id is not None:
         filters.append({"term": {"user_id": user_id}})
     return filters
+
+
+#: One KST day per composite key, as a ``yyyy-MM-dd`` string.
+_COMPOSITE_DAY_SOURCE: dict[str, Any] = {
+    "day": {
+        "date_histogram": {
+            "field": "@timestamp",
+            "calendar_interval": "day",
+            "time_zone": "Asia/Seoul",
+            "format": "yyyy-MM-dd",
+        }
+    }
+}
+
+
+def _api_calls_query(
+    start: datetime, now: datetime, *path_filters: dict[str, Any]
+) -> dict[str, Any]:
+    """Every request row in range — no weight or kind filter: the endpoint
+    views measure load, which is exactly what _activity_filters drops."""
+    return {
+        "bool": {
+            "filter": [
+                {"term": {"event": "request"}},
+                *path_filters,
+                _time_range(start, now),
+            ]
+        }
+    }
 
 
 def _default_search_factory(alias: str) -> Any:
@@ -703,25 +734,8 @@ class ActivityOpenSearchReader:
         """
         now = self._now()
         start = _kst_day_start(now, VISITOR_DAYS - 1)
-        query = {
-            "bool": {
-                "filter": [
-                    {"term": {"event": "request"}},
-                    {"prefix": {"path": "/api/"}},
-                    _time_range(start, now),
-                ]
-            }
-        }
-        day_source = {
-            "day": {
-                "date_histogram": {
-                    "field": "@timestamp",
-                    "calendar_interval": "day",
-                    "time_zone": "Asia/Seoul",
-                    "format": "yyyy-MM-dd",
-                }
-            }
-        }
+        query = _api_calls_query(start, now, {"prefix": {"path": "/api/"}})
+        day_source = _COMPOSITE_DAY_SOURCE
         path_buckets = self._composite_pages(
             query,
             [
@@ -762,6 +776,44 @@ class ActivityOpenSearchReader:
             "generated_at": _iso_utc(now),
             "days": list(rows.values()),
         }
+
+    def get_endpoint_callers(
+        self, method: str, path_pattern: str
+    ) -> EndpointCallersResponse:
+        """Per KST day, raw path → caller → calls for one endpoint.
+
+        ``path_pattern`` is a Lucene regexp built by the route from a Flask
+        rule. ``missing_bucket`` keeps the calls with no user_id, which a
+        composite otherwise drops without a word.
+        """
+        now = self._now()
+        start = _kst_day_start(now, VISITOR_DAYS - 1)
+        buckets = self._composite_pages(
+            _api_calls_query(
+                start,
+                now,
+                {"term": {"method": method}},
+                {"regexp": {"path": {"value": path_pattern}}},
+            ),
+            [
+                _COMPOSITE_DAY_SOURCE,
+                {"path": {"terms": {"field": "path"}}},
+                {"user_id": {"terms": {"field": "user_id", "missing_bucket": True}}},
+            ],
+        )
+        rows: dict[str, EndpointCallerDay] = {
+            day.isoformat(): {"date": day.isoformat(), "paths": {}}
+            for day in chart_days(now.astimezone(KST).date())
+        }
+        for bucket in buckets:
+            key = bucket.get("key", {})
+            row = rows.get(str(key.get("day", "")).split("T", 1)[0])
+            if row is None:
+                continue
+            by_user = row["paths"].setdefault(str(key.get("path")), {})
+            user = str(key.get("user_id") or "")
+            by_user[user] = by_user.get(user, 0) + int(bucket.get("doc_count", 0))
+        return {"generated_at": _iso_utc(now), "days": list(rows.values())}
 
     def get_users_list(self) -> UserListResponse:
         now = self._now()

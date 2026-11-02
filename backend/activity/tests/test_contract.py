@@ -15,6 +15,7 @@ from backend._core.contract_check import assert_matches
 from backend._runtime.data_provider import get_data_provider
 from backend.activity import data
 from backend.activity.contracts import (
+    EndpointCallersResponse,
     EndpointStatsResponse,
     FabUsageResponse,
     FamilyUsageResponse,
@@ -49,6 +50,13 @@ def test_request_stats_matches_contract():
 
 def test_endpoint_stats_matches_contract():
     assert_matches(data.get_endpoint_stats(), EndpointStatsResponse)
+
+
+def test_endpoint_callers_matches_contract():
+    assert_matches(
+        data.get_endpoint_callers("GET", "/api/[^/]+/storage"),
+        EndpointCallersResponse,
+    )
 
 
 def test_users_list_matches_contract():

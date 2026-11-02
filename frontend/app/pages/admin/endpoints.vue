@@ -141,13 +141,69 @@
           />
         </UCard>
       </section>
+
+      <!-- One endpoint's callers, fetched when picked. Same window tab as
+           above, so it reads as a zoom into the cards over it. -->
+      <UCard class="dashboard-surface">
+        <template #header>
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
+              <UIcon name="i-lucide-users-round" />
+              엔드포인트별 호출자
+              <span class="sk-meta font-normal">· {{ windowLabel }}</span>
+            </span>
+            <USelectMenu
+              v-model="selectedEndpoint"
+              :items="endpointOptions"
+              class="w-[32rem]"
+              :ui="{ content: 'min-w-[32rem]' }"
+              size="sm"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-route"
+              placeholder="엔드포인트 선택"
+            />
+          </div>
+        </template>
+        <UAlert
+          v-if="callersError"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          title="호출자 데이터를 불러오지 못했습니다."
+          :description="callersError"
+          :actions="[{ label: '다시 시도', onClick: loadCallers }]"
+        />
+        <p
+          v-else-if="!selectedEndpoint"
+          class="sk-body"
+        >
+          엔드포인트를 고르면 누가 호출했는지 보여줍니다.
+        </p>
+        <div
+          v-else
+          class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4"
+          :class="{ 'opacity-60': callersLoading }"
+        >
+          <ActivityEndpointsChart
+            :series="callerDays"
+            axis="users"
+            :names="callers?.names ?? {}"
+          />
+          <ActivityCountBarList
+            :items="callerRowsForEndpoint"
+            unit="건"
+            :empty-text="callersLoading ? '불러오는 중입니다.' : '이 기간에는 호출 기록이 없습니다.'"
+          />
+        </div>
+      </UCard>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { resetActivityCache, useActivityEndpoints } from '~/composables/useActivityApi'
-import { TREND_AXIS_TABS, endpointKpis, topCallers, topEndpoints, type TrendAxis } from '~/utils/activityEndpoints'
+import { fetchEndpointCallers, resetActivityCache, useActivityEndpoints, type EndpointCallersResponse } from '~/composables/useActivityApi'
+import { TREND_AXIS_TABS, endpointChoices, endpointKpis, topCallers, topEndpoints, type TrendAxis } from '~/utils/activityEndpoints'
 import { VISITOR_WINDOW_TABS, visitorWindow, type VisitorWindowKey } from '~/utils/activityVisitors'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
@@ -170,7 +226,7 @@ const loadError = computed(() => {
 
 const refreshAll = async () => {
   resetActivityCache()
-  await query?.refresh()
+  await Promise.all([query?.refresh(), loadCallers()])
 }
 
 const kpiCards = computed(() => endpointKpis(days.value))
@@ -182,4 +238,40 @@ const windowLabel = computed(() => VISITOR_WINDOW_TABS.find(tab => tab.value ===
 
 const endpointRows = computed(() => topEndpoints(windowDays.value))
 const callerRows = computed(() => topCallers(windowDays.value, stats.value?.names ?? {}))
+
+const endpointOptions = computed(() => endpointChoices(windowDays.value))
+const selectedEndpoint = ref<string | undefined>()
+// Defaults to the window's busiest endpoint, once data arrives.
+watch(endpointOptions, (options) => {
+  if (!selectedEndpoint.value) selectedEndpoint.value = options[0]
+}, { immediate: true })
+
+const callers = ref<EndpointCallersResponse | null>(null)
+const callersLoading = ref(false)
+const callersError = ref<string | null>(null)
+let callersTicket = 0
+
+const loadCallers = async () => {
+  const endpoint = selectedEndpoint.value
+  if (!endpoint || blocked.value) return
+  // A slower answer for an endpoint picked earlier must not overwrite this one.
+  const ticket = ++callersTicket
+  callersLoading.value = true
+  callersError.value = null
+  try {
+    const result = await fetchEndpointCallers(endpoint)
+    if (ticket === callersTicket) callers.value = result
+  } catch (error) {
+    if (ticket === callersTicket) callersError.value = operationalDataErrorMessage(error, '호출자 데이터를 불러오지 못했습니다.')
+  } finally {
+    if (ticket === callersTicket) callersLoading.value = false
+  }
+}
+// Immediate: the default above is set before this watcher exists.
+watch(selectedEndpoint, loadCallers, { immediate: true })
+
+const callerDays = computed(() =>
+  callers.value && callers.value.endpoint === selectedEndpoint.value ? visitorWindow(callers.value.days, windowKey.value) : []
+)
+const callerRowsForEndpoint = computed(() => topCallers(callerDays.value, callers.value?.names ?? {}))
 </script>

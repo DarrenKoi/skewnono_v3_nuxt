@@ -16,6 +16,7 @@ __all__ = [
     "get_daily_visitors",
     "get_request_stats",
     "get_endpoint_stats",
+    "get_endpoint_callers",
     "get_users_list",
     "get_user_history",
     "record_request",
@@ -57,6 +58,10 @@ def get_request_stats():
 
 def get_endpoint_stats():
     return _provider().get_endpoint_stats()
+
+
+def get_endpoint_callers(method: str, path_pattern: str):
+    return _provider().get_endpoint_callers(method, path_pattern)
 
 
 def get_users_list():

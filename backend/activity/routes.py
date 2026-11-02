@@ -1,4 +1,5 @@
 import logging
+import re
 
 from flask import Blueprint, current_app, g, jsonify, request
 from werkzeug.exceptions import HTTPException
@@ -11,6 +12,7 @@ from .._logging.feature_map import page_to_family, page_to_feature
 from .contracts import NamedUserListResponse
 from .data import (
     get_daily_visitors,
+    get_endpoint_callers,
     get_endpoint_stats,
     get_fab_page_usage,
     get_family_page_usage,
@@ -165,15 +167,81 @@ def _endpoint_stats():
                 "users": day["users"],
             }
         )
-    members = lookup_members({uid for day in days for uid in day["users"]})
     return {
         "generated_at": payload["generated_at"],
         "days": days,
-        "names": {
-            uid: {"emp_nm": member.get("emp_nm"), "dept_nm": member.get("dept_nm")}
-            for uid, member in members.items()
-        },
+        "names": _names_of(days),
     }
+
+
+def _names_of(days) -> dict:
+    members = lookup_members({uid for day in days for uid in day["users"]})
+    return {
+        uid: {"emp_nm": member.get("emp_nm"), "dept_nm": member.get("dept_nm")}
+        for uid, member in members.items()
+    }
+
+
+# Werkzeug's placeholder: <name>, <conv:name>, <conv(args):name>.
+_RULE_PLACEHOLDER = re.compile(r"<(?:(\w+)(?:\([^)]*\))?:)?\w+>")
+# Lucene regexp's reserved characters; Python's re reads the same escapes.
+_LUCENE_RESERVED = re.compile(r'([.?+*|{}\[\]()"\\#@&<>~])')
+
+
+def _path_pattern(rule: str) -> str:
+    """``/api/<tool_slug>/x.zip`` → ``/api/[^/]+/x\\.zip`` (Lucene regexp).
+
+    Deliberately loose: ``path`` placeholders can swallow a sibling rule's
+    suffix, and every converter is any segment. The route folds the matches
+    back through url_map afterwards, so loose costs a few buckets, not
+    correctness.
+    """
+    parts = []
+    last = 0
+    for match in _RULE_PLACEHOLDER.finditer(rule):
+        parts.append(_LUCENE_RESERVED.sub(r"\\\1", rule[last:match.start()]))
+        parts.append(".+" if match.group(1) == "path" else "[^/]+")
+        last = match.end()
+    parts.append(_LUCENE_RESERVED.sub(r"\\\1", rule[last:]))
+    return "".join(parts)
+
+
+def _endpoint_callers():
+    endpoint = request.args.get("endpoint", "")
+    method, _, rule = endpoint.partition(" ")
+    # Only a real /api rule: the pattern is built from it, so an arbitrary
+    # string must never reach the cluster as a regexp.
+    if not rule.startswith("/api/") or not any(
+        known.rule == rule and method in (known.methods or ())
+        for known in current_app.url_map.iter_rules()
+    ):
+        return error_json("bad_request", "unknown endpoint", 400)
+
+    def load():
+        payload = get_endpoint_callers(method, _path_pattern(rule))
+        adapter = current_app.url_map.bind("localhost")
+        days = []
+        for day in payload["days"]:
+            users: dict[str, int] = {}
+            requests = 0
+            for path, by_user in day["paths"].items():
+                if _endpoint_of(adapter, f"{method} {path}") != endpoint:
+                    continue
+                for user_id, count in by_user.items():
+                    requests += count
+                    if user_id:
+                        users[user_id] = users.get(user_id, 0) + count
+            days.append(
+                {"date": day["date"], "requests": requests, "endpoints": {}, "users": users}
+            )
+        return {
+            "generated_at": payload["generated_at"],
+            "endpoint": endpoint,
+            "days": days,
+            "names": _names_of(days),
+        }
+
+    return _query(load)
 
 
 # Admin-only: who calls what, per day. Every /api call, not just user intent.
@@ -181,6 +249,13 @@ def _endpoint_stats():
 @require_admin
 def activity_endpoints():
     return _query(_endpoint_stats)
+
+
+# Who calls ONE endpoint, per day — fetched when the admin picks it.
+@bp.get("/activity/endpoints/callers")
+@require_admin
+def activity_endpoint_callers():
+    return _endpoint_callers()
 
 
 @bp.get("/activity/users/<user_id>")

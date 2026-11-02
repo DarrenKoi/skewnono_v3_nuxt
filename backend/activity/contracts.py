@@ -30,6 +30,8 @@ __all__ = [
     "RequestsResponse",
     "EndpointDay",
     "EndpointStatsResponse",
+    "EndpointCallerDay",
+    "EndpointCallersResponse",
 ]
 
 
@@ -261,6 +263,26 @@ class EndpointStatsResponse(TypedDict):
 
     generated_at: str
     days: list[EndpointDay]
+
+
+class EndpointCallerDay(TypedDict):
+    """One KST day of the calls to ONE endpoint, as the provider reads it.
+
+    ``paths`` is raw path → user_id → calls, with ``""`` for calls that carry
+    no user_id. Raw paths, because the provider's path pattern can also catch
+    a sibling rule (``/afm/files/<path:f>`` matches ``.../images.zip``); the
+    route keeps only the paths that fold onto the requested rule.
+    """
+
+    date: str
+    paths: dict[str, dict[str, int]]
+
+
+class EndpointCallersResponse(TypedDict):
+    """``VISITOR_DAYS`` KST days oldest first."""
+
+    generated_at: str
+    days: list[EndpointCallerDay]
 
 
 class FamilyUsageRow(TypedDict):

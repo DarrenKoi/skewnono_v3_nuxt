@@ -184,6 +184,15 @@ export interface EndpointsResponse {
   names: Record<string, { emp_nm: string | null, dept_nm: string | null }>
 }
 
+/** Who called ONE endpoint, per day. `endpoints` is always empty; the shape
+ *  is EndpointDay so the same chart and ranking read it. */
+export interface EndpointCallersResponse {
+  generated_at: string
+  endpoint: string
+  days: EndpointDay[]
+  names: EndpointsResponse['names']
+}
+
 const ME_KEY = 'activity-me'
 const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
@@ -214,6 +223,7 @@ const useActivityUrls = () => {
     visitorsUrl: joinApiPath(base, '/activity/visitors'),
     requestsUrl: joinApiPath(base, '/activity/requests'),
     endpointsUrl: joinApiPath(base, '/activity/endpoints'),
+    endpointCallersUrl: joinApiPath(base, '/activity/endpoints/callers'),
     userDetailUrl: (userId: string) =>
       joinApiPath(base, `/activity/users/${encodeURIComponent(userId)}`)
   }
@@ -288,6 +298,12 @@ export const useActivityEndpoints = () => {
 export const fetchUserHistory = async (userId: string): Promise<UserHistoryResponse> => {
   const { userDetailUrl } = useActivityUrls()
   return await $fetch<UserHistoryResponse>(userDetailUrl(userId))
+}
+
+// On demand, like fetchUserHistory: the admin picks one endpoint at a time.
+export const fetchEndpointCallers = async (endpoint: string): Promise<EndpointCallersResponse> => {
+  const { endpointCallersUrl } = useActivityUrls()
+  return await $fetch<EndpointCallersResponse>(endpointCallersUrl, { query: { endpoint } })
 }
 
 // Reset every cached request so refreshAll triggers real network calls.

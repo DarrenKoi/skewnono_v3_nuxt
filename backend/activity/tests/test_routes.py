@@ -62,6 +62,7 @@ def make_client(monkeypatch):
         "/api/activity/visitors",
         "/api/activity/requests",
         "/api/activity/endpoints",
+        "/api/activity/endpoints/callers?endpoint=POST%20/api/page-view",
     ],
 )
 def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
@@ -437,3 +438,76 @@ def test_every_mock_page_call_is_a_real_route():
     for slug in {slug for _prefix, slug in _FEATURE_RULES}:
         for call in mock._mock_calls(slug, 3, rng):
             assert routes._endpoint_of(adapter, call) != routes.UNMATCHED_ENDPOINT, call
+
+
+def test_path_pattern_escapes_literals_and_loosens_placeholders():
+    assert routes._path_pattern("/api/afm/files/<path:filename>/images.zip") == (
+        r"/api/afm/files/.+/images\.zip"
+    )
+    assert routes._path_pattern("/api/<tool_slug>/hardware/<eqp_id>/<service>") == (
+        "/api/[^/]+/hardware/[^/]+/[^/]+"
+    )
+
+
+def _admin_app():
+    app = Flask(__name__)
+
+    @app.before_request
+    def identity():
+        g.user_id = "local-dev"
+        g.identity_source = "local"
+
+    app.register_blueprint(routes.bp, url_prefix="/api")
+    return app
+
+
+def test_endpoint_callers_keep_only_paths_of_the_requested_rule(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_ADMIN_USERS", raising=False)
+    asked = {}
+
+    def callers(method, pattern):
+        asked.update(method=method, pattern=pattern)
+        return {
+            "generated_at": "x",
+            "days": [
+                {
+                    "date": "2026-11-02",
+                    "paths": {
+                        "/api/activity/users/111": {"111": 2, "": 1},
+                        "/api/activity/users/222": {"111": 3},
+                        # Caught by the loose pattern, but another rule.
+                        "/api/activity/users": {"111": 9},
+                    },
+                }
+            ],
+        }
+
+    monkeypatch.setattr(routes, "get_endpoint_callers", callers)
+    monkeypatch.setattr(routes, "lookup_members", lambda ids: {uid: {} for uid in ids})
+
+    body = _admin_app().test_client().get(
+        "/api/activity/endpoints/callers",
+        query_string={"endpoint": "GET /api/activity/users/<user_id>"},
+    ).json
+
+    assert asked == {"method": "GET", "pattern": "/api/activity/users/[^/]+"}
+    assert body["days"] == [
+        {"date": "2026-11-02", "requests": 6, "endpoints": {}, "users": {"111": 5}}
+    ]
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["GET /api/no-such-route", "DELETE /api/activity/summary", "GET /.*", ""],
+)
+def test_endpoint_callers_refuse_anything_but_a_real_api_rule(monkeypatch, endpoint):
+    monkeypatch.delenv("SKEWNONO_ADMIN_USERS", raising=False)
+    monkeypatch.setattr(
+        routes, "get_endpoint_callers", lambda *_: pytest.fail("reached the provider")
+    )
+
+    response = _admin_app().test_client().get(
+        "/api/activity/endpoints/callers", query_string={"endpoint": endpoint}
+    )
+
+    assert response.status_code == 400

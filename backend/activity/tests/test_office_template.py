@@ -968,3 +968,33 @@ def test_endpoint_stats_refuse_a_cut_rather_than_zero_the_newest_days(monkeypatc
 
     with pytest.raises(RuntimeError, match="composite pages"):
         reader.get_endpoint_stats()
+
+
+def test_endpoint_callers_filter_one_endpoint_and_keep_unattributed_calls():
+    reader, search, _aliases = _reader(
+        [
+            {
+                "aggregations": {
+                    "pairs": {
+                        "buckets": [
+                            {"key": {"day": "2026-07-27", "path": "/api/cdsem/storage", "user_id": "u1"}, "doc_count": 3},
+                            {"key": {"day": "2026-07-27", "path": "/api/cdsem/storage", "user_id": None}, "doc_count": 2},
+                        ]
+                    }
+                }
+            }
+        ]
+    )
+
+    payload = reader.get_endpoint_callers("GET", "/api/[^/]+/storage")
+
+    assert payload["days"][-1] == {
+        "date": "2026-07-27",
+        "paths": {"/api/cdsem/storage": {"u1": 3, "": 2}},
+    }
+    body = search.bodies[0]
+    filters = body["query"]["bool"]["filter"]
+    assert {"term": {"method": "GET"}} in filters
+    assert {"regexp": {"path": {"value": "/api/[^/]+/storage"}}} in filters
+    sources = body["aggs"]["pairs"]["composite"]["sources"]
+    assert sources[-1] == {"user_id": {"terms": {"field": "user_id", "missing_bucket": True}}}
