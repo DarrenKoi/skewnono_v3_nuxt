@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-03-recipe-compare",
+    "level": "info",
+    "title": "Recipe 검색 — 비교하기 정식 지원",
+    "body": "Recipe 검색에서 recipe 를 2개 이상 골라 비교하기를 누르면 장비의 실제 설정값으로 비교합니다. 자세한 내용은 공지사항을 확인해 주세요.",
+    "dismissible": true,
+    "ends_at": "2026-11-17T23:59:59"
+  },
+  {
     "id": "2026-10-29-meas-box",
     "level": "info",
     "title": "Recipe 검색 — 측정 박스 표시 추가",
