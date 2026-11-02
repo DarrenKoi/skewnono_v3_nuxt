@@ -88,7 +88,7 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 ```
 
 - **Core** — 괄호 phase 가 EV·tEV·DTV·TTV·TV·PV 이고 메모리가 DRAM/NAND.
-- **Pool제** — 괄호 phase 가 `Pool제` 이고 메모리가 DRAM/NAND. 예전의 수율 확인 전/후(`yield_check`) 구분은 없어졌고 **후 기준으로 통합**되었습니다.
+- **Pool제** — 괄호 phase 가 `Pool제`. 메모리와 무관하게 **Pool 이 우선**합니다(`[Pool제 / 기타]` 도 Pool, cap 은 DRAM 쪽 10/10 — 기본값). 예전의 수율 확인 전/후(`yield_check`) 구분은 없어졌고 **후 기준으로 통합**되었습니다.
 - **기타 (`Other`)** — 그 외 전부: RTC·Cubic·요소기술·메모리 `기타` 등. 모두 **RTC 룰** 하나를 따릅니다.
 - **미준수 (`null`)** — 괄호가 없는 합의 이전 포맷. 룰 미정(Gray)으로 판정하고 화면 칩은 `?` 입니다. 예전의 토큰 추론(`Pool`/`VG` 단어 찾기, `prod_catg_cd` 로 메모리 추정)으로 되돌아가지 않습니다.
 

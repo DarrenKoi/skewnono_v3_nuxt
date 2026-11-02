@@ -16,8 +16,10 @@
 분류:
 
 - **Core**  — 괄호 phase 가 EV·tEV·DTV·TTV·TV·PV 이고 메모리가 DRAM/NAND.
-- **Pool**  — 괄호 phase 가 Pool제 이고 메모리가 DRAM/NAND.
-- **Other** — 나머지 전부(RTC·Cubic·요소기술·메모리 기타 …). 모두 RTC 룰.
+- **Pool**  — 괄호 phase 가 Pool제. 메모리와 무관하게 **Pool 이 우선**합니다
+  (user-confirmed 2026-11-02) — ``[Pool제 / 기타]`` 도 Pool 입니다.
+- **Other** — 나머지 전부(RTC·Cubic·요소기술·Core phase 인데 메모리 기타 …).
+  모두 RTC 룰.
 - ``None``  — 괄호가 없는 합의 이전 포맷. 룰 미정(Gray)으로 판정합니다 — 예전
   토큰 추론(Pool/VG 단어 찾기)으로 되돌아가지 않기로 했습니다(user 2026-11-02).
 
@@ -58,10 +60,10 @@ def parse_device_desc(desc: str | None) -> DescAxes | None:
     phase = _CORE_PHASES.get(phase_key)
 
     family: Family
-    if memory and phase:
-        family = "Core"
-    elif memory and phase_key.startswith("POOL"):
+    if phase_key.startswith("POOL"):
         family = "Pool"
+    elif memory and phase:
+        family = "Core"
     else:
         family = "Other"
     return {"family": family, "phase": phase, "memory_class": memory or "unknown"}

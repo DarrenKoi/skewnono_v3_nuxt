@@ -36,6 +36,8 @@ def _cell(recipe_class, family, phase=None, memory=None):
     ("Core", "PV", "NAND", 16, 16),
     ("Pool", None, "DRAM", 10, 10),
     ("Pool", None, "NAND", 8, 8),
+    # [Pool제 / 기타] — Pool 우선. 메모리 기타는 DRAM 쪽 cap (기본값, 2026-11-02).
+    ("Pool", None, "unknown", 10, 10),
     ("Other", None, "DRAM", 10, 0),
     ("Other", "TV", "unknown", 10, 0),
 ])

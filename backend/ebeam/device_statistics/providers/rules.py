@@ -106,7 +106,10 @@ def _r3_cells() -> list[RuleCell]:
     - Core — EV·tEV·DTV·TTV 는 DRAM 10 / NAND 8 · EDGE_EX 0, **TV 부터** 16/16
       (memory 분기 없음). DTV·TTV 는 EV 급입니다(user-confirmed 2026-11-02).
     - Pool제 — 예전의 수율 확인 전/후 구분을 없애고 **후 기준으로 통합**:
-      DRAM 10/10, NAND 8/8. yield_check 축은 폐기.
+      DRAM 10/10, NAND 8/8. yield_check 축은 폐기. 괄호에 Pool제 가 있으면
+      메모리가 기타여도 Pool 이 우선하고(user-confirmed 2026-11-02), 그때 cap 은
+      DRAM 쪽 10/10 입니다 — 예전 ground rule 의 "DRAM·RTC 계열 = 10" 관례를 따른
+      기본값입니다(user 확인 전).
     - Other — RTC·Cubic·요소기술·메모리 기타 등 Core 가 아닌 전부. RTC 룰
       EDGE 10 / EDGE_EX 0, memory·phase 분기 없음.
     """
@@ -116,6 +119,8 @@ def _r3_cells() -> list[RuleCell]:
         *_cells("core-tvpv", {"family": "Core", "phase_in": ["TV", "PV"]}, 16, 16),
         *_cells("pool-dram", {"family": "Pool", "memory_class": "DRAM"}, 10, 10),
         *_cells("pool-nand", {"family": "Pool", "memory_class": "NAND"}, 8, 8),
+        # [Pool제 / 기타] — 위 두 셀이 memory 로 먼저 걸러지므로 first-match 상 마지막.
+        *_cells("pool-other", {"family": "Pool"}, 10, 10),
         *_cells("other", {"family": "Other"}, 10, 0),
     ]
 

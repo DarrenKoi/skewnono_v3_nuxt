@@ -279,6 +279,12 @@ test('Pool제: 수율 구분 없이 EDGE_EX 10 (DRAM) — 어노테이션 없이
   const over = applyAnnotation(recipe({ family: 'Pool', phase: null, parameters: [{ name: 'EDGE_EX', point_count: 11 }] }))
   assert.equal(evaluateRecipe(over, resolveRuleCell(over, [poolDram])).pass, false)
 })
+test('[Pool제 / 기타]: memory 없는 Pool 셀에 붙는다 — Gray-B 가 아니다', () => {
+  const poolAny: RuleCell = { ...poolDram, id: 'r3-pool-other', selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool' } }
+  const r = applyAnnotation(recipe({ family: 'Pool', phase: null, memory_class_auto: 'unknown' }))
+  const res = resolveRuleCell(r, [poolDram, poolAny, otherCell])
+  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-pool-other')
+})
 test('Other(RTC 룰): phase·memory 와 무관하게 한 셀, EDGE_EX 0', () => {
   for (const [phase, mem] of [[null, 'DRAM'], ['TV', 'unknown']] as const) {
     const r = applyAnnotation(recipe({

@@ -482,6 +482,7 @@ Tech 이름이 없으면 과제 설명을 씁니다. phase 가 두 번 들어가
 | Core TV 이후 | TV·PV | 16 | 16 |
 | Pool제 | DRAM | 10 | 10 |
 | Pool제 | NAND | 8 | 8 |
+| Pool제 | 기타 (기본값) | 10 | 10 |
 | 기타 (RTC 룰) | RTC·Cubic·요소기술·메모리 기타 등 | 10 | 0 |
 
 기타 파라는 Main 9, Sample 0 입니다. Sample 은 추가가 가능하나 사유가 있어야 하므로 위반으로
@@ -497,9 +498,9 @@ Tech 이름이 없으면 과제 설명을 씁니다. phase 가 두 번 들어가
 **기본값으로 정한 것 (확인 필요 시 뒤집기)**
 
 - 룰은 **괄호 phase** 만 봅니다. 본문 phase 와 Cell/Peri 꼬리는 아직 읽지 않습니다.
-- `[Pool제 / 기타]` 는 Pool 룰이 DRAM/NAND 로만 갈리므로 RTC 룰로 보냅니다.
-- 화면 단계 칩은 괄호 phase 칸을 그대로 보입니다. 그래서 `[Pool제 / 기타]` 의 칩은 Pool 인데
-  적용 cap 은 RTC 룰입니다.
+- `[Pool제 / 기타]` 는 **Pool 이 우선**합니다(user-confirmed 2026-11-02 "[ ] 안에 Pool제가 있으면
+  그게 우선"). Pool 룰은 DRAM/NAND 로만 갈리므로 메모리 기타의 cap 은 DRAM 쪽 10/10 으로
+  두었습니다 — 이 값은 기본값이며 확인 전입니다.
 
 **Supersede**: D3(토큰 기반 family 파생과 VG > Pool > Core 우선순위), D7(prod_catg_cd 로 memory
 파생, VG 의 DRAM 환원), D8 의 Pool `yield_check` 축, D19(Sample Core TV·PV 만 EDGE 16 · EDGE_EX 0).

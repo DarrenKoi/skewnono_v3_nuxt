@@ -44,9 +44,11 @@ def test_full_width_brackets_and_slash_are_accepted():
     }
 
 
-def test_pool_with_non_core_memory_falls_to_rtc_rule():
-    # Pool 룰은 DRAM/NAND 로만 갈립니다 — 기타 메모리는 비-Core 일반 룰.
-    assert parse_device_desc("[Pool제 / 기타] X PV Cell")["family"] == "Other"
+def test_pool_in_bracket_wins_even_with_non_core_memory():
+    # 괄호에 Pool제 가 있으면 Pool 이 우선합니다 (user-confirmed 2026-11-02).
+    assert parse_device_desc("[Pool제 / 기타] X PV Cell") == {
+        "family": "Pool", "phase": None, "memory_class": "unknown",
+    }
 
 
 @pytest.mark.parametrize("desc", [

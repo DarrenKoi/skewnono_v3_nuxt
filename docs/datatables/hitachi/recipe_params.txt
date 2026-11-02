@@ -339,7 +339,7 @@ device 의 ctn_desc / recipe 이름에서 파생됩니다. 근거 없이 값을 
                          "[Pool제 / NAND] Petra PV Peri"
                          "[TV / 기타] SC-MRAM TV Cell&Peri"
                    Core  = 괄호 phase 가 EV·tEV·DTV·TTV·TV·PV + 메모리 DRAM/NAND
-                   Pool  = 괄호 phase 가 Pool제 + 메모리 DRAM/NAND
+                   Pool  = 괄호 phase 가 Pool제 (메모리 무관, Pool 우선 — 기타는 DRAM 쪽 cap)
                    Other = 그 외 전부(RTC·Cubic·요소기술·메모리 기타 …) → RTC 룰
                    null  = 괄호가 없는 합의 이전 포맷 → 룰 미정(Gray). 예전
                            토큰 추론(Pool/VG 단어, prod_catg_cd)으로 되돌아가지

@@ -342,8 +342,8 @@ docstring.
   `total=False` for the remaining optional keying axes — see
   `contracts.py` for the exact split.)
 - Mock behavior: a single seeded rule version for fab `"R3"` only
-  (`version: 1`): six rows (Core early DRAM/NAND, Core TV·PV, Pool제
-  DRAM/NAND, Other) each emitted once for `Main` and once for `Sample`
+  (`version: 1`): seven rows (Core early DRAM/NAND, Core TV·PV, Pool제
+  DRAM/NAND/기타, Other) each emitted once for `Main` and once for `Sample`
   (same WAFER/LEVEL/EDGE/EDGE_EX, `_other` 9 vs 0). Every cell names a
   `family`, so a recipe whose device description is not in the agreed
   `[phase / memory] …` format (`family: None`) matches nothing and is gray.
