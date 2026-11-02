@@ -288,6 +288,35 @@ On the office PC (`OFFICE-VERIFY`): the `skewnono_logging_local` alias keeps
 only 30 days after rollover, so an empty early day there is missing history,
 not a quiet day. Production keeps 540 days and is unaffected.
 
+### `GET /api/activity/endpoints`
+
+**Admin only** (`403 forbidden` otherwise). Feeds the `/admin/endpoints` page.
+The opposite population of `/requests`: **every** `event=request` row whose
+`path` starts with `/api/` — no `activity_weight` or kind filter — because the
+question is server load, so polling, failed calls, API-token and anonymous
+calls all count. Returns 90 KST days, each with `requests`, `endpoints`
+(`"<METHOD> <Flask rule>"` → calls) and `users` (`user_id` → calls; calls with
+no `user_id` are `requests − Σusers`), plus `names` from `lookup_members`.
+
+The provider returns raw `"<METHOD> <path>"` keys; the route folds them onto
+their Flask rule with `url_map.match(..., return_rule=True)`, so both adapters
+share one folding and `/api/afm/files/X.tif/image/P3` and its siblings are one
+endpoint. A path no `/api` rule answers is counted under `(미등록 경로)`.
+
+The office reader pages two composites (`day × method × path` and
+`day × user_id`, `COMPOSITE_PAGE_SIZE` per page). Raw paths carry ids, so a
+per-day `terms` top-N would drop exactly the fan-out endpoints. Paging stops at
+`ENDPOINT_PAGE_LIMIT` (100) and **raises** (`503`) rather than return a cut:
+composite pages run oldest day first, so a cut would zero the newest days.
+`OFFICE-VERIFY`: the real 90-day count of distinct `(day, method, path)` pairs,
+the page count and the total latency have not been read; if the page answers
+503, raise the limit or log the Flask rule as a field of its own. The same
+30-day `_local` retention caveat as `/requests` applies.
+
+The mock fabricates calls from the seeded request rows (`_MOCK_PAGE_CALLS`,
+one real route per `feature_map` slug), plus background calls and an
+unattributed 5-minute health probe; volumes are `OFFICE-VERIFY`.
+
 ### `GET /api/activity/users/<user_id>`
 
 **Admin only** (`403 forbidden` otherwise). Returns the personal history shape.

@@ -103,7 +103,13 @@ export const buildEndpointsOption = (
 ): EChartsOption => {
   const pick = (day: EndpointDay) => (axis === 'endpoints' ? day.endpoints : day.users)
   const top = sumBy(series, pick).slice(0, CHART_SERIES).map(([key]) => key)
-  const label = (key: string) => (axis === 'endpoints' ? key : userDisplayName(memberOf(key, names)))
+  // A series name is ECharts' identity (colour, legend toggle): two people
+  // sharing a name must not merge, so the employee number always rides along.
+  const label = (key: string) => {
+    if (axis === 'endpoints') return key
+    const name = userDisplayName(memberOf(key, names))
+    return name === key ? key : `${name} · ${key}`
+  }
   const bands = [
     ...top.map(key => ({ name: label(key), data: series.map(day => pick(day)[key] ?? 0) })),
     {

@@ -43,3 +43,10 @@ test('the tooltip escapes a Flask rule so its <params> survive innerHTML', () =>
   const html = tooltip.formatter([{ dataIndex: 0, seriesName: 'GET /api/<tool_slug>/storage', value: 1 }])
   assert.match(html, /&lt;tool_slug&gt;/)
 })
+
+test('namesakes stay two series, keyed by employee number', () => {
+  const days: EndpointDay[] = [{ date: '2026-11-02', requests: 3, endpoints: {}, users: { 111: 2, 222: 1 } }]
+  const names = { 111: { emp_nm: '김민수', dept_nm: null }, 222: { emp_nm: '김민수', dept_nm: null } }
+  const bands = buildEndpointsOption(days, 'users', names).series as { name: string }[]
+  assert.deepEqual(bands.map(band => band.name).slice(0, 2), ['김민수 · 111', '김민수 · 222'])
+})
