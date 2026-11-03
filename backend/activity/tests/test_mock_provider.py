@@ -420,3 +420,18 @@ def test_request_stats_count_pages_past_the_cap_as_other(fresh_store):
     ]
     assert window["other_count"] == 1
     assert window["entry"] == 0
+
+
+def test_endpoint_stats_are_owned_token_calls_only(fresh_store):
+    # A token call always carries its owner, and no script is invented for the
+    # paths a token is refused on (admin rights never ride on a token).
+    mock.seed_demo_users()
+
+    days = mock.get_endpoint_stats()["days"]
+
+    assert sum(day["requests"] for day in days) > 0
+    for day in days:
+        assert sum(day["users"].values()) == day["requests"]
+        assert not any(
+            p.startswith(("GET /api/admin", "GET /api/account")) for p in day["paths"]
+        )

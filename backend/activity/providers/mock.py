@@ -531,8 +531,10 @@ def _mock_calls(feature: str, count: int, rng: random.Random) -> list[str]:
 
 
 # Admin rights never ride on a token (docs/back-end/api-tokens.md §5.1) and
-# /account/api-tokens refuses token callers, so no script calls these.
-_NOT_SCRIPTED = frozenset({"activity", "admin_logs", "api_tokens"})
+# /account/api-tokens refuses token callers, so no script calls these. (A
+# token CAN reach them — the 403 is still a logged token call — but a script
+# that only ever gets 403 is not one the mock needs to invent.)
+_NOT_SCRIPTED = frozenset({"admin_logs", "api_tokens"})
 
 
 def _mock_day_calls(states: list[_UserState], day: date) -> dict[tuple[str | None, str], int]:
