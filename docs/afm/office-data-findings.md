@@ -19,11 +19,11 @@
 | 4차 | 2026-10-02 | 후속 질문 Q1~Q15 | 같은 이력 |
 | 5차 | 2026-10-06 | Redis·MinIO 적재 명세 전달 | 같은 이력 |
 | 6차 | 2026-10-06 | 통합 질문서 Q21~Q42, P2 | [`to-questionnaire-afm.md`](to-questionnaire-afm.md)의 그때 판(git 이력) |
-| 7차 | 2026-10-07 | Q32·Q35·Q43~Q46·Q48·Q49·Q51·Q53, 팁 열 추가 구현 | 같은 문서, [팁 열 추가 요청](../office-migration/to-office-afm-tip-columns.md) |
+| 7차 | 2026-10-07 | Q32·Q35·Q43~Q46·Q48·Q49·Q51·Q53, 팁 열 추가 구현 | 같은 문서, 팁 열 추가 요청(`to-office-afm-tip-columns.md`, 완료 후 2026-11-03 삭제 — git 이력) |
 | 8차 | 2026-10-07 | Q55·Q56·Q46·Q54·Q35·Q53, Mileage 판단, 팁 열의 나머지 | [`to-questionnaire-afm-261007.md`](to-questionnaire-afm-261007.md) |
 | 9차 | 2026-10-07 | 남은 질문 31개(글자로 답하는 양식) | [`to-questionnaire-afm-261007-2.md`](to-questionnaire-afm-261007-2.md) |
-| 10차 | 2026-10-07 | 사무실 확인 목록 31개(변경이 실제 데이터에서 동작하는지) | [사무실 확인 목록](../office-migration/to-office-afm-verify-261007.md) |
-| 11차 | 2026-10-07 | 10차에서 B였던 항목의 세부(스크립트 네 줄) | [사무실 확인 후속](../office-migration/to-office-afm-verify-261007-2.md) |
+| 10차 | 2026-10-07 | 사무실 확인 목록 31개(변경이 실제 데이터에서 동작하는지) | 사무실 확인 목록(`to-office-afm-verify-261007.md`, 완료 후 2026-11-03 삭제 — git 이력) |
+| 11차 | 2026-10-07 | 10차에서 B였던 항목의 세부(스크립트 네 줄) | 사무실 확인 후속(`to-office-afm-verify-261007-2.md`, 완료 후 2026-11-03 삭제 — git 이력) |
 | 12차 | 2026-10-08 | Info의 `Start Time`·`End Time`(측정 소요시간 분석의 선행 확인) | 보낸 질문서 없음. [추가 서비스 추천 보고서](service-recommendations.md) 4절의 미확인 항목에 대한 답입니다. |
 
 ## 1차 회신 (2026-10-02) — raw 파일에서 확인한 사실
@@ -562,7 +562,7 @@ msr_image 처럼 afm도 이미지 다수에 대한 제한을 없애야함.  원�
 
 ## 10차 회신 (2026-10-07) — 사무실 확인 결과
 
-[사무실 확인 목록](../office-migration/to-office-afm-verify-261007.md)에 대한 답입니다. 그
+사무실 확인 목록(`to-office-afm-verify-261007.md`, 완료 후 2026-11-03 삭제 — git 이력)에 대한 답입니다. 그
 양식은 A가 "적힌 기대 결과 그대로", B가 "다름", `?`가 "확인하지 못함"입니다. 사무실에서
 adapter를 다시 복사하고 실제 Redis·MinIO로 본 결과이므로 `office 확인`으로 기록했습니다.
 회신은 "간추린 답"이라 B의 세부는 7번에만 있습니다.
@@ -700,12 +700,12 @@ test_profile_sampling...file_size (total key 없음)
 | Capture 타일에 포인트 이름이 안 붙음 (17번) | 이 문서 | 없음 | **미해결** — 실제 이름을 기다립니다. |
 | `Tip Width` 음수, 새 Tip ID `NT-DT50-NCHR` | redis 2, raw D3 | 없음 | 기록만. 뜻을 물었습니다. |
 
-후속 질문은 [사무실 확인 후속](../office-migration/to-office-afm-verify-261007-2.md)에
+후속 질문은 사무실 확인 후속(`to-office-afm-verify-261007-2.md`, 완료 후 2026-11-03 삭제 — git 이력)에
 있습니다.
 
 ## 11차 회신 (2026-10-07) — 확인 후속의 답
 
-[사무실 확인 후속](../office-migration/to-office-afm-verify-261007-2.md)에 대한 답입니다.
+사무실 확인 후속(`to-office-afm-verify-261007-2.md`, 완료 후 2026-11-03 삭제 — git 이력)에 대한 답입니다.
 스크립트 네 줄은 받았고, 글자로 고르는 질문 A(회차)·B(음수 폭)·C(가장 느린 요청)는 받지
 못했습니다.
 
