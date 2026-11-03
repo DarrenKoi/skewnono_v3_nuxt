@@ -250,19 +250,24 @@ FamilyToolType = Literal["hv-sem", "veritysem", "provision"]
 
 
 class FamilyStepRow(TypedDict):
-    """표 A — 한 계열·한 device 의 한 step. 정체성은 R3 에서
-    (tool_type, lot_cd, oper_seq, samp_seq) 이며 recipe_id 는 정체성이 아닙니다."""
+    """표 A — 한 계열·한 device 의 한 step.
+
+    정체성은 R3 에서 (tool_type, prod_id, oper_seq, samp_seq, oper_desc) 입니다.
+    (prod_id, oper_seq, samp_seq) 만으로는 겹치는 행이 있고, 겹친 행은 전부
+    oper_desc 가 다른 별개 step 입니다 (hv 3 / verity 30 / provision 27,
+    office 확인 2026-11-04). recipe_id 는 정체성이 아닙니다."""
 
     tool_type: FamilyToolType
     fac_id: str
-    lot_cd: str
+    prod_id: str           # R3 원천 값("REXA_BASE" / "RH0V_CAP_BASE"). M fab 은 ""
+    lot_cd: str            # family_rules.lot_cd_from_prod_id(prod_id) — 카탈로그 키
     oper_id: str
     oper_desc: str
     oper_seq: int | None   # M fab 은 None — Home 이 공정 접두사로 합성합니다
     samp_seq: int | None
     recipe_id: str
     eqp_id: str
-    skip_yn: str           # "Y" / "N" / "" — R3 원천 값 그대로. M fab 은 ""
+    skip_yn: str           # R3 는 "Y" / "N" / "D" (빈 값 0건, office 확인 2026-11-04). M fab 은 ""
     chg_tm: str            # offset 없는 KST wall-clock. M fab 은 ""
 
 

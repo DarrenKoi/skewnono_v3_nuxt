@@ -195,6 +195,11 @@ IDP_INDEX = "cdsem_idp_ver"
 # user/<사번>/ 아래로 제한되어 있어 버킷 레벨 조작은 하지 않습니다.
 MINIO_BASE = "device_statistics/weekly_trend"
 
+# 주차 스냅샷의 장비 계열 축 (사무실 회신 2026-11-04). CD-SEM 은 MINIO_BASE 바로
+# 아래(이미 쌓인 주차의 자리), 다른 계열은 MINIO_BASE/<tool_type>/ 입니다. 계열이
+# key 에 없으면 네 계열이 같은 YYYY-MM-DD.json 을 덮어씁니다. snapshot_store.py 와 같은 배치.
+SNAPSHOT_TOOL_TYPES = ("cd-sem", "hv-sem", "veritysem", "provision")
+
 # YYYY-MM-DD.json 인 객체만 스냅샷으로 취급합니다 — sweep 이 같은 prefix 의 다른
 # 객체를 지우지 않도록 하는 방어선입니다.
 _SNAPSHOT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -1424,8 +1429,14 @@ def _weekly_dates(points: int, interval_days: int) -> list[str]:
     ]
 
 
-def _snapshot_key(date_key: str) -> str:
-    return f"{MINIO_BASE}/{date_key}.json"
+def _snapshot_prefix(tool_type: str = "cd-sem") -> str:
+    if tool_type not in SNAPSHOT_TOOL_TYPES:
+        raise ValueError(f"unknown tool_type {tool_type!r}")
+    return f"{MINIO_BASE}/" if tool_type == "cd-sem" else f"{MINIO_BASE}/{tool_type}/"
+
+
+def _snapshot_key(date_key: str, tool_type: str = "cd-sem") -> str:
+    return f"{_snapshot_prefix(tool_type)}{date_key}.json"
 
 
 def _is_missing_object(exc: Exception) -> bool:
@@ -1506,12 +1517,15 @@ def get_weekly_trend_data(
 # ───────────────────────── 스냅샷 적재 (스케줄러) ─────────────────────────
 
 
-def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
+def build_weekly_snapshot(date_key: str | None = None, tool_type: str = "cd-sem") -> dict[str, Any]:
     """이번 주차 스냅샷 payload — **모든 device 의 summary 만**.
 
     읽기 쪽(:func:`_bucket_from_snapshot`)과 형태가 갈라지지 않도록 생성도 이
     모듈이 합니다. ``*_rcp_info`` 는 일부러 담지 않습니다(모듈 docstring).
+    CD-SEM 만 만듭니다 — 계열 summary 계산은 아직 없습니다.
     """
+    if tool_type != "cd-sem":
+        raise NotImplementedError(f"weekly summary for {tool_type!r} is not built yet")
     anchor = date_key or _week_anchor(datetime.now(KST).date()).isoformat()
     bucket = _live_bucket(_resolve_lots(None), include_recipes=False)
     return {
@@ -1526,7 +1540,7 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
     }
 
 
-def write_weekly_snapshot(date_key: str | None = None) -> str:
+def write_weekly_snapshot(date_key: str | None = None, tool_type: str = "cd-sem") -> str:
     """주차 스냅샷을 MinIO 에 올리고 그 key 를 돌려줍니다.
 
     스케줄러의 유일한 진입점입니다 — 주 1회(월요일) 이것만 부르면 됩니다. 같은
@@ -1534,8 +1548,8 @@ def write_weekly_snapshot(date_key: str | None = None) -> str:
     """
     from minio_handler import MinioObject  # office 전용 의존성 — 지연 import
 
-    payload = build_weekly_snapshot(date_key)
-    key = _snapshot_key(payload["date"])
+    payload = build_weekly_snapshot(date_key, tool_type)
+    key = _snapshot_key(payload["date"], tool_type)
     MinioObject().put_json(key, payload)
     _LOG.info(
         "device_statistics: wrote weekly snapshot %s (%d lots)",
@@ -1544,7 +1558,7 @@ def write_weekly_snapshot(date_key: str | None = None) -> str:
     return key
 
 
-def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
+def sweep_weekly_snapshots(keep_weeks: int = 26, tool_type: str = "cd-sem") -> int:
     """가장 최근 ``keep_weeks`` 주차만 남기고 MinIO 객체를 지웁니다.
 
     **key 의 날짜로 판단하며 ``last_modified`` 로 하지 않습니다.** 이미지 캐시는
@@ -1561,14 +1575,20 @@ def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
     허용된 prefix 밖에서 NotFound 가 아니라 AccessDenied 를 돌려주므로, 삼키면
     경로 오타가 "성공"을 보고하면서 영원히 아무것도 하지 않습니다.
 
+    **prefix 바로 아래만 봅니다(``recursive=False``).** CD-SEM 의 prefix 는 계열
+    하위 폴더의 부모이므로, 재귀로 나열하면 ``hv-sem/2026-...`` 이 CD-SEM 주차와
+    섞여 정렬됩니다 — 전체 key 로 정렬하면 "h..." 가 "2..." 뒤에 와서 계열 파일이
+    "가장 최근" 으로 남고 **CD-SEM 주차가 지워집니다.** 비재귀 나열의 하위 폴더
+    항목은 이름이 "/" 로 끝나 ``_SNAPSHOT_NAME`` 에 걸리지 않습니다.
+
     OFFICE-VERIFY: 첫 실행에서 실제로 지워지는 개수와 남는 개수.
     """
     from minio_handler import MinioObject  # office 전용 의존성 — 지연 import
 
     store = MinioObject()
-    prefix = f"{MINIO_BASE}/"
+    prefix = _snapshot_prefix(tool_type)
     dated: list[str] = []
-    for obj in store.list(prefix=prefix, recursive=True):
+    for obj in store.list(prefix=prefix, recursive=False):
         stem = str(obj.object_name).rsplit("/", 1)[-1].removesuffix(".json")
         if _SNAPSHOT_NAME.match(stem):
             dated.append(str(obj.object_name))

@@ -14,7 +14,18 @@ from backend.ebeam.device_statistics.contracts import (
     FamilyRecipeStatusRow,
     FamilyStepRow,
 )
+from backend.ebeam.device_statistics.family_rules import (
+    FAMILY_NORMAL_TOKENS,
+    is_family_normal_step,
+    is_family_sample_recipe,
+    lot_cd_from_prod_id,
+)
 from backend.ebeam.device_statistics.para_buckets import has_non_measurement_name
+from backend.ebeam.device_statistics.providers.recipe_population import (
+    ends_with_pure_cd,
+    is_measuring,
+    is_sample_recipe,
+)
 from backend.ebeam.device_statistics.providers import mock
 from backend.sem_list.providers import mock as sem_list_mock
 
@@ -84,9 +95,11 @@ def test_steps_follow_r3_vs_mfab_shape(family):
     r3 = [s for s in steps if s["fac_id"] == "R3"]
     m = [s for s in steps if s["fac_id"] != "R3"]
     assert r3 and m
-    assert {s["skip_yn"] for s in r3} == {"Y", "N", ""}
-    assert all(s["oper_seq"] is None and s["samp_seq"] is None and s["skip_yn"] == "" for s in m)
-    keys = [(s["lot_cd"], s["oper_seq"], s["samp_seq"]) for s in r3]
+    assert all(
+        s["oper_seq"] is None and s["samp_seq"] is None and s["skip_yn"] == "" and s["prod_id"] == ""
+        for s in m
+    )
+    keys = [(s["prod_id"], s["oper_seq"], s["samp_seq"], s["oper_desc"]) for s in r3]
     assert len(keys) == len(set(keys))
     # 한 device 안에서 recipe 재사용 — recipe_id 는 step 정체성이 아닙니다.
     assert len({(s["lot_cd"], s["recipe_id"]) for s in r3}) < len(r3)
@@ -118,3 +131,93 @@ def test_activity_differs_from_step_devices_both_ways(family):
     for fab in {a["fac_id"] for a in activity}:
         counts = [a["meas_count"] for a in activity if a["fac_id"] == fab]
         assert counts == sorted(counts, reverse=True)
+
+
+# ── 사무실 회신 2026-11-04 ────────────────────────────────────────────────
+
+
+def test_skip_yn_domain_is_y_n_d():
+    """계열 index 는 Y / N / D, 빈 값 0건. D 는 측정 중(N 과 같음)."""
+    for family in FAMILIES:
+        r3 = [s for s in mock.get_family_steps(family) if s["fac_id"] == "R3"]
+        assert {s["skip_yn"] for s in r3} == {"Y", "N", "D"}, family
+    assert is_measuring("D") and is_measuring("N") and not is_measuring("Y")
+    assert is_family_normal_step("hv-sem", "CBL ETCH HV", "D")
+    assert not is_family_normal_step("hv-sem", "CBL ETCH HV", "Y")
+
+
+def test_cap_prod_ids_map_to_catalog_lot():
+    assert lot_cd_from_prod_id("RH0V_CAP_BASE") == "RH0V"
+    assert lot_cd_from_prod_id("REXA_BASE") == "REXA"
+    assert lot_cd_from_prod_id("RCAP_BASE") == "RCAP"      # 이름 안의 CAP 은 그대로
+    catalog = {r["lot_cd"] for r in mock.get_r3_device_grp()}
+    for family in FAMILIES:
+        r3 = [s for s in mock.get_family_steps(family) if s["fac_id"] == "R3"]
+        cap = [s for s in r3 if s["prod_id"].endswith("_CAP_BASE")]
+        assert cap, family
+        assert all(lot_cd_from_prod_id(s["prod_id"]) == s["lot_cd"] for s in r3)
+        assert {s["lot_cd"] for s in cap} <= catalog
+
+
+def test_off_catalog_devices_appear():
+    """Q11 B — 계열이 재는 device 일부는 카탈로그에 없습니다."""
+    catalog = {r["lot_cd"] for r in mock.get_r3_device_grp()}
+    for family in FAMILIES:
+        r3_lots = {s["lot_cd"] for s in mock.get_family_steps(family) if s["fac_id"] == "R3"}
+        assert r3_lots - catalog, family
+
+
+def test_family_sample_rule_rejects_dense():
+    assert is_family_sample_recipe("C/X_REXA_001_S")
+    assert is_family_sample_recipe("C/X_REXA_001_SE")
+    assert not is_family_sample_recipe("C/X_REXA_001_DENSE")
+    assert not is_family_sample_recipe("C/X_REXA_001SE")
+    recipes = {s["recipe_id"] for f in FAMILIES for s in mock.get_family_steps(f)}
+    dense = {r for r in recipes if r.endswith("_DENSE")}
+    assert dense and all(is_sample_recipe(r) for r in dense)      # CD-SEM 규칙은 오검출
+    assert not any(is_family_sample_recipe(r) for r in dense)
+    assert any(is_family_sample_recipe(r) for r in recipes)
+    # 계열 Sample 은 전부 "_S" / "_SE" — "...1SE" 같은 CD-SEM 꼬리가 남지 않습니다.
+    assert not any(r.endswith("SE") and not r.endswith(("_SE", "_DENSE")) for r in recipes)
+
+
+def test_identity_duplicates_differ_by_oper_desc():
+    for family in FAMILIES:
+        r3 = [s for s in mock.get_family_steps(family) if s["fac_id"] == "R3"]
+        by_key: dict = {}
+        for s in r3:
+            by_key.setdefault((s["prod_id"], s["oper_seq"], s["samp_seq"]), []).append(s["oper_desc"])
+        dups = [descs for descs in by_key.values() if len(descs) > 1]
+        assert dups, family
+        assert all(len(set(descs)) == len(descs) for descs in dups)
+
+
+def test_family_normal_rule_markers():
+    assert is_family_normal_step("hv-sem", "CBL ETCH HV", "N")
+    assert not is_family_normal_step("hv-sem", "CBL ETCH CD", "N")    # HV 에 CD 표식 없음
+    assert not is_family_normal_step("hv-sem", "ISO PTN HV(E)", "N")
+    assert not is_family_normal_step("hv-sem", "CBL ETCH HV AVIS", "N")
+    for desc in ("GT LINE CD", "GT LINE VERITY", "GT LINE VRT"):
+        assert is_family_normal_step("veritysem", desc, "N"), desc
+    assert is_family_normal_step("provision", "GT LINE PROV", "N")
+    assert not is_family_normal_step("provision", "GT LINE VRT", "N")
+    # CD-SEM 규칙은 그대로 — 계열 표식으로 넓어지지 않습니다.
+    assert not ends_with_pure_cd("CBL ETCH HV") and ends_with_pure_cd("CBL ETCH CD")
+    # mock 은 각 계열의 표식으로 끝나는 step 을 내고, HV-SEM 에는 CD 로 끝나는 step 이 없습니다.
+    for family in FAMILIES:
+        steps = mock.get_family_steps(family)
+        normal = [s for s in steps if is_family_normal_step(family, s["oper_desc"], s["skip_yn"])]
+        assert 0 < len(normal) < len(steps), family
+        lasts = {s["oper_desc"].split()[-1] for s in normal}
+        assert lasts == set(FAMILY_NORMAL_TOKENS[family]), family
+    assert not any(ends_with_pure_cd(s["oper_desc"]) for s in mock.get_family_steps("hv-sem"))
+
+
+def test_hv_params_carry_blank_and_duplicate_names():
+    by_recipe: dict = {}
+    for p in mock.get_family_params("hv-sem"):
+        by_recipe.setdefault(p["recipe_id"], []).append(p["param_name"])
+    rows = [n for names in by_recipe.values() for n in names]
+    assert 0.02 < rows.count("") / len(rows) < 0.08
+    dup = sum(1 for names in by_recipe.values() if len([n for n in names if n]) > len({n for n in names if n}))
+    assert 0.35 < dup / len(by_recipe) < 0.65

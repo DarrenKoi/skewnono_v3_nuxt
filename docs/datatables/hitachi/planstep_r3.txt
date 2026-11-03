@@ -47,9 +47,39 @@ only_sample 은 축이 recipe 이름이라 그 규칙이 닿지 않으므로, �
 OFFICE-VERIFY 입니다.
 
 OFFICE-VERIFY (계열 index)
-- `-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.
+- ~~`-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.~~
+  답: 아닙니다 — "_CAP_BASE" 가 있습니다 (아래 "계열 index 실측").
 - 네 index 모두 det_fac_id 가 "R3" 단일 값인지 (index 이름에 r3 가 들어 있음).
-- suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index.
+- suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index. (세 계열 index 에
+  AVIS/ICANS 스텝이 있는 것은 확인 — office 확인 2026-11-04.)
+
+계열 index 실측 (office 확인 2026-11-04 — docs/office-migration/reply-device-statistics-families-261104.md)
+
+위 OFFICE-VERIFY 셋 중 둘이 답을 얻었고, 가정 몇 개가 틀렸습니다. **이 절은
+-hv / -verify / -provision 에만 해당합니다.** -cd 에도 같은지는 확인하지 않았습니다.
+
+- skip_yn 값은 "Y" / "N" / **"D"** 이고 빈 값은 0건입니다. D 는 N 과 같은
+  성격이라 판정은 그대로 `!= "Y"` 입니다.
+- prod_id 는 "_BASE" 만이 아닙니다 — "RH0V_CAP_BASE" 형태가 175건 있고,
+  "_BASE" 다음 "_CAP" 까지 떼야 r3_device_grp.lot_cd 와 맞습니다
+  (device_statistics/family_rules.py lot_cd_from_prod_id).
+- (prod_id, oper_seq, samp_seq) 가 유일하지 않습니다 — 겹치는 행이 hv 3 /
+  verify 30 / provision 27건이고, 전부 oper_desc 가 다른 별개 step 입니다. 이
+  index 들의 행 정체성은 (prod_id, oper_seq, samp_seq, oper_desc) 입니다.
+- only_normal 의 "마지막 토큰 == CD" 는 HV-SEM 에서 0건입니다(CD 로 끝나는 step
+  이 없음). 계열 표식이 마지막 토큰입니다 — hv: HV / verify: CD, VERITY, VRT /
+  provision: CD, PROV. 사무실 이름 "규칙 F" 이며 CD-SEM 에 걸어도 현행과 숫자가
+  같습니다. 다른 후보(G/H)는 CD-SEM 을 2~3,000 늘려 기각되었습니다.
+- only_sample 은 recipe 이름이 "_S" / "_SE" 로 끝나는 것입니다. CD-SEM 의
+  "(_S|SE)$" 는 "_DENSE" 같은 정상 recipe 를 잡습니다.
+- 카탈로그(r3_device_grp / device_desc)에 없는 device 가 세 계열 모두 있습니다.
+- 표 A 규모(lots / steps / recipes): hv 193 / 3,310 / 1,443, verify 216 / 4,250 /
+  2,074, provision 294 / 8,156 / 3,487. recipes / steps 가 0.44~0.49 라 step 의
+  절반 넘게 recipe 를 공유합니다(-cd 의 mock 가정 4% 와 전혀 다름).
+- chg_tm 은 offset 없는 KST wall-clock 입니다.
+
+mock: backend/ebeam/device_statistics/providers/family_tables.py 가 위 성질을 모두
+냅니다(비율만 모르는 것은 그 파일의 OFFICE-VERIFY).
 
 계열별 나머지 경로 (user-confirmed 2026-10-27)
 - 파라미터 개수: CD-SEM 은 cdsem_idp_ver, **HV-SEM 은 hvsem_idp_ver** 입니다

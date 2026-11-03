@@ -124,7 +124,12 @@ device-statistics 의 공정 스텝 소스는 fab 계열에 따라 **둘로 갈�
 
 M fab 경로는 다음과 같습니다.
 
-1. **최근 3개월**(약 90일) 구간을 event_tm 으로 자릅니다. recipe_tat 의 60일과
+1. **최근 3개월**(약 90일) 구간을 event_tm 으로 자릅니다.
+   ★ 사무실 권고(office 확인 2026-11-04, device-statistics 계열 추출): 창은
+   event_tm 이 아니라 **dt.keyword** 로 자르십시오. event_tm 에는 미래값이 6건
+   있고 dt 와 5.7% 어긋납니다. lake_load_tm 은 14자리 숫자라 date 로 잘못
+   파싱되므로 쓰지 않습니다. 지금 CD-SEM 어댑터는 event_tm 을 씁니다 —
+   바꾸면 CD-SEM 화면 숫자가 움직이므로 따로 결정합니다(OFFICE-VERIFY). recipe_tat 의 60일과
    다른 창이므로 상수를 공유하지 마십시오. 3개월을 쓰는 근거는 "그 안에는 fab 에서
    최소 한 번의 공정이 돌았을 것" 이라는 가정입니다 — 이 창을 좁히면 스텝이 통째로
    비는 device 가 생깁니다.

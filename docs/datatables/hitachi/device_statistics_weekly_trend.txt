@@ -17,7 +17,17 @@ chg_tm <= 기준일 로 거르는 as-of 재구성도 정확하지 않습니다. 
 바뀐 스텝은 통째로 빠지므로 과거로 갈수록 과소 집계됩니다. 따라서 **주차별 스냅샷을
 적재**하고 화면은 그것을 읽습니다.
 
-Key   -> {MinIO 기본 prefix}/device_statistics/weekly_trend/YYYY-MM-DD.json
+Key   -> {MinIO 기본 prefix}/device_statistics/weekly_trend/YYYY-MM-DD.json          (CD-SEM)
+         {MinIO 기본 prefix}/device_statistics/weekly_trend/<tool_type>/YYYY-MM-DD.json
+                                                       (hv-sem / veritysem / provision)
+
+장비 계열 축 (2026-11-04, 사무실 회신으로 추가) — key 가 주차뿐이면 계열을 붙이는
+순간 네 계열이 같은 파일을 덮어씁니다. CD-SEM 은 이미 쌓인 주차를 옮기지 않으려고
+기존 자리를 그대로 쓰고, 다른 계열만 하위 폴더에 씁니다. sweep 은 자기 prefix
+**바로 아래만**(비재귀) 나열합니다 — 재귀로 나열하면 CD-SEM sweep 이 계열 key 를
+같이 정렬해 CD-SEM 주차를 지웁니다. 계열 summary 계산은 아직 없어, 계열 쓰기는
+NotImplementedError 로 거절합니다. 과거 추이는 재구성하지 않고 지금부터 쌓습니다
+(Q14 BBB).
          날짜는 그 주의 **월요일**입니다(주차 키는 항상 월요일 ISO 날짜).
          사무실 자격증명은 user/<사번>/ prefix 로 제한되어 있으므로 그 아래에
          떨어집니다. 버킷 레벨 조작(lifecycle 등)은 하지 않습니다.

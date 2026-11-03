@@ -14,6 +14,13 @@
 
 따라서 집에서 이 모듈이 검증하는 것은 **payload 를 만들어 남기는 데까지**이며,
 그것이 사무실에서 MinIO 에 올라갈 바로 그 payload 입니다.
+
+**장비 계열 축 (사무실 회신 2026-11-04).** 파일 이름이 주차 하나뿐이면 계열을
+붙이는 순간 네 계열이 같은 ``YYYY-MM-DD.json`` 을 덮어씁니다. CD-SEM 은 지금
+자리(폴더 바로 아래)를 그대로 쓰고 — 이미 쌓인 주차를 옮기지 않으려는 것입니다 —
+다른 계열은 ``<tool_type>/`` 하위 폴더에 씁니다. sweep 은 자기 폴더 **바로 아래**만
+보므로 CD-SEM sweep 이 계열 파일을 세거나 지우지 않습니다. 계열 summary 계산은
+아직 없어서 :func:`build_weekly_snapshot` 은 CD-SEM 만 만듭니다.
 """
 
 import json
@@ -39,6 +46,9 @@ KST = timezone(timedelta(hours=9))
 _SNAPSHOT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+SNAPSHOT_TOOL_TYPES = ("cd-sem", "hv-sem", "veritysem", "provision")
+
+
 def snapshot_dir() -> Path:
     """``SKEWNONO_WEEKLY_TREND_DIR`` 또는 기본 ``var/weekly_trend``.
 
@@ -47,6 +57,14 @@ def snapshot_dir() -> Path:
     """
     raw = os.environ.get("SKEWNONO_WEEKLY_TREND_DIR", "").strip()
     return Path(raw) if raw else Path("var/weekly_trend")
+
+
+def _tool_dir(tool_type: str) -> Path:
+    """그 계열의 스냅샷 폴더. CD-SEM 은 기존 자리, 나머지는 ``<tool_type>/``."""
+    if tool_type not in SNAPSHOT_TOOL_TYPES:
+        raise ValueError(f"unknown tool_type {tool_type!r}")
+    base = snapshot_dir()
+    return base if tool_type == "cd-sem" else base / tool_type
 
 
 def _current_week() -> str:
@@ -58,13 +76,18 @@ def _current_week() -> str:
     return _trend_dates(points=1, interval_days=7)[-1]
 
 
-def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
+def build_weekly_snapshot(date_key: str | None = None, tool_type: str = "cd-sem") -> dict[str, Any]:
     """한 주차 payload — **모든 device 의 summary 만**.
+
+    CD-SEM 만 만듭니다. 다른 계열을 CD-SEM summary 로 채워 그 계열 폴더에 쓰면
+    틀린 추이가 조용히 쌓이므로 거절합니다.
 
     ``*_rcp_info`` 는 일부러 담지 않습니다. recipe 단위 상세는 device 4000개 ×
     버킷 4개 × recipe 100~200개가 되어 매주 GB 급이 되는데, 그것을 읽는 화면이
     없습니다(docs/datatables/hitachi/device_statistics_weekly_trend.txt).
     """
+    if tool_type != "cd-sem":
+        raise NotImplementedError(f"weekly summary for {tool_type!r} is not built yet")
     anchor = date_key or _current_week()
     # points=1 — a snapshot only needs one week. Across 4000 lots the mock
     # costs ~4.6s per week; asking for 8 (to reuse _trend_dates' window) would
@@ -90,11 +113,11 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
     }
 
 
-def write_weekly_snapshot(date_key: str | None = None) -> str:
+def write_weekly_snapshot(date_key: str | None = None, tool_type: str = "cd-sem") -> str:
     """payload 를 파일로 남기고 그 경로를 돌려줍니다. 같은 주차를 다시 불러도
     덮어쓰므로 재실행에 안전합니다."""
-    payload = build_weekly_snapshot(date_key)
-    directory = snapshot_dir()
+    payload = build_weekly_snapshot(date_key, tool_type)
+    directory = _tool_dir(tool_type)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{payload['date']}.json"
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -111,7 +134,7 @@ def _snapshot_dates(directory: Path) -> list[str]:
     )
 
 
-def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
+def sweep_weekly_snapshots(keep_weeks: int = 26, tool_type: str = "cd-sem") -> int:
     """가장 최근 ``keep_weeks`` 주차만 남기고 지웁니다. 지운 개수를 돌려줍니다.
 
     **key 의 날짜로 판단하며 파일의 mtime 으로 하지 않습니다.** 놓친 주를 메우려
@@ -119,7 +142,7 @@ def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
     오늘이 됩니다. mtime 기준이면 그 오래된 백필을 남기고 정상적인 최근 것을
     지웁니다.
     """
-    directory = snapshot_dir()
+    directory = _tool_dir(tool_type)
     if not directory.is_dir():
         return 0
     dates = _snapshot_dates(directory)
@@ -136,6 +159,7 @@ def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
 
 
 __all__ = [
+    "SNAPSHOT_TOOL_TYPES",
     "build_weekly_snapshot",
     "snapshot_dir",
     "sweep_weekly_snapshots",

@@ -62,6 +62,15 @@ Index(alias)
                      아래 "순서는 parameters_list 가 정합니다" 절을 보십시오.
   raw_data -> object: parameter 별 상세 row. ``Mother_Para`` 가 여기 있습니다
               (office 확인 2026-08-10). 아래 "raw_data — mother 의 출처" 절.
+              hvsem_idp_ver (office 확인 2026-11-04, device-statistics 계열 표 B):
+              - param_seq 는 **raw_data 행 순서**입니다. office_utils 의
+                parameter_conditions() 는 SEQ 를 잘라 내므로 쓰지 않습니다.
+              - 빈 Parameter 가 42,657행(4.9%) 있고, 이름이 겹치는 파라미터가 있는
+                문서가 52.7% 입니다 — 이름은 키가 아닙니다. (recipe, param_seq) 로
+                잇습니다.
+              - 종류(param_type) column 이 없어 이름에서 파생해야 합니다(Q4 B).
+              - device-statistics 표 A recipe 중 이 index 에서 찾는 비율은 40%
+                (ok 575 / not_found 868)입니다.
   wafer_para_loc_info -> object: parameter 별 측정 위치 row (wafer_mp_info 에
               해당). mapping 추가 script 는 ops_index_mgmt/hitachi_idp_ver_new_field.py
               입니다 (OFFICE-VERIFY: 그 script 가 실제 index 에 적용됐는지, 적재 job 이

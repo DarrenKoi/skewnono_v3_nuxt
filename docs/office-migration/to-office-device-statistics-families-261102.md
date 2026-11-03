@@ -2,6 +2,8 @@
 
 - 작성일: 2026-11-02입니다. 같은 날 Codex 교차 검토로 누락 항목을 보강했습니다.
 - 수신자: 사무실에서 SKEWNONO 데이터를 추출·적재하는 Office agent입니다.
+- 회신: 2026-11-04에 받았습니다. 원문과 반영 내용은 회신 기록 문서
+  (`reply-device-statistics-families-261104.md`)에 있습니다.
 - 목적: device-statistics를 CD-SEM 외에 **HV-SEM, VeritySEM, Provision**에도 엽니다.
   이 세 계열은 CD-SEM과 달리 **계측 Rule이 없습니다.** 화면은 Rule 판정 없이
   "디바이스마다 어떤 step을 어떤 recipe로 재고, recipe마다 파라미터가 몇 개이며
