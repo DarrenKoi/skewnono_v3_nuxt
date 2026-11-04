@@ -34,6 +34,7 @@ with FtpClient(host="10.0.0.1", user="u", password="p") as ftp:
     ftp.remove("/MEAS/stale.dat")                      # DELE
     ftp.put("/INBOX/a.csv", b"a,b\n")                  # temp STOR → RNTO, 있으면 TargetExists
     ftp.put("/INBOX/a.csv", b"c,d\n", overwrite=True)  # temp STOR → DELE → RNTO
+    ftp.replace("/INBOX/a.csv", b"e,f\n")             # temp STOR → RNTO, DELE 없음
     ftp.mkdir("/INBOX/2026/10")                        # mkdir -p — 이미 있으면 성공
     ftp.mkdir("/CLS/data/W1", floor="/CLS/data")       # /CLS/data 와 그 위는 만들지 않음
     ftp.rmdir("/INBOX/old")                            # RMD — 빈 폴더만
@@ -45,6 +46,16 @@ with FtpClient(host="10.0.0.1", user="u", password="p") as ftp:
 rename 한다 — 기존 파일 위로의 RNTO를 거절하는 서버가 있어서다. 그 사이 대상이 잠시
 없고, DELE 뒤 rename이 실패하면 새 내용이 유일한 사본이므로 임시 파일을 지우지 않고
 예외의 `temp_path`로 알린다(응답 유실이면 `TransferUncertain`).
+
+`replace`(2026-11-04)는 `TargetExists` 검사도 DELE도 없이 임시 파일을 대상 위로 바로
+RNTO 한다. RNTO가 성공하기 전까지 대상은 옛 내용 그대로라 장비는 옛 파일로 계속 동작하고,
+잃는 것은 호출자가 아직 들고 있는 새 바이트뿐이라 재시도할 수 있다. 서버가 RNTO를 명시적으로
+거절하면 임시 파일을 지우고 예외를 그대로 올린다(대상은 온전하다). 응답이 유실되면 서버가
+이미 rename 했을 수 있으므로 임시 파일을 남기고 `TransferUncertain`의 `temp_path`로 알린다.
+기존 파일 위로의 RNTO를 거절하는 서버에서는 `replace`가 항상 거절로 끝나므로
+`put(overwrite=True)`를 쓴다(서버별 동작은 OFFICE-VERIFY). 프록시 `FtpClient`도 같은
+시그니처의 `replace`를 가지며, 2026-11-04 이전 프록시는 이 op를 모르므로 `ProxyError`로
+거절하고 아무것도 쓰지 않는다.
 
 `mkdir`은 플릿 `mkdir`처럼 `mkdir -p`다(2026-10-29부터. 그 전에는 MKD 한 번이었다).
 단계마다 MKD 하고, 거절되면 그 단계로 `CWD`가 되는지 확인해 폴더면 성공으로 치고 원래
