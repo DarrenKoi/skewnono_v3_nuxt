@@ -55,8 +55,12 @@
   fab 으로도 안 정해지는 나머지는 가장 최근 문서를 씁니다(S3 A). mock 은 M fab
   step 15% 가 R3 recipe 를 쓰게 해 여러 fab 에 걸린 recipe 를 만들고, 그 절반에서
   뒤 fab 의 마지막 파라미터를 뺍니다(두 비율 모두 지어낸 값).
-- VeritySEM·Provision 에도 "CD_HV" 처럼 붙은 표식 꼬리가 있습니다(S7 B). 꼬리
-  목록과 step 수는 아직 받지 못해 규칙 F 표식에 넣지 않았습니다 — OFFICE-VERIFY.
+- 붙은 표식 꼬리는 Provision 의 "CD2_PROV" 12 step 뿐이고 VeritySEM 에는 없습니다
+  (S7 B / V1). 규칙 F 표식에 넣었고 mock 이 같은 비율로 냅니다.
+- **R7QA / R7QC 의 fab 이 두 표에서 어긋납니다** (4차 회신): 표 A det_fac_id 는
+  "R4", 표 D(ebeam_tas_lot_hist fab_id)는 "R3" 입니다. A ↔ D 를 (fac_id, lot_cd) 로
+  조인하면 같은 device 가 두 fab 으로 갈립니다 — lot_cd 로만 잇습니다. mock 은 R4
+  lot 을 표 D 에 fac_id "R3" 로 내어 이 어긋남을 그대로 둡니다.
 
 3차 회신 숫자 (office 확인 2026-11-04 — reply-device-statistics-families-261104-r3.md)
 
@@ -191,7 +195,8 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
         "seed": 20261104, "r3_lots": 294, "r3_steps": (18, 38), "off_catalog": 47,
         "m_lots": 71, "m_steps": (4, 12), "skip_d_ratio": 0.0142, "dense_per_mille": 0,
         "shared_recipe_ratio": 0.61, "dup_identity_ratio": 0.0033, "active_ratio": 0.30,
-        "markers": ("CD", "PROV"), "marker_weights": (1, 1),
+        # CD2_PROV 12 / 8,156 step (V1, office 확인 2026-11-04).
+        "markers": ("CD", "PROV", "CD2_PROV"), "marker_weights": (1, 1, 0.01),
         "image_step_ratio": 0.182,   # 1,481 / 8,156 (office 확인 2026-11-04)
         "source_kind": "measurement", "has_mother": False, "typed_params": True,
         "status_weights": (0.88, 0.02, 0.07, 0.03),   # veritysem 과 같은 이유의 가정값

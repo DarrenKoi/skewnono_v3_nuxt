@@ -277,7 +277,8 @@ class FamilyParamRow(TypedDict):
     정체성은 (tool_type, recipe_id, fac_id, param_seq) 입니다. 같은 (recipe, version)
     인데 파라미터가 다른 경우가 40건이고 그중 33건이 fab 마다 하나로 정해져, fab 축을
     둡니다 (S2 A, office 확인 2026-11-04). fab 으로도 정해지지 않는 나머지는 가장
-    최근 문서를 씁니다 (S3 A). idp 의 eqp_id 는 배열이고 94.5% 가 IP 주소라 장비로
+    최근 문서를 씁니다 (S3 A) — "최근" 은 ``version`` 이 아니라 ``modified`` 기준입니다
+    (T4, office 확인 2026-11-04). fab 은 idp 문서의 ``fac_id`` field 입니다 (T3). idp 의 eqp_id 는 배열이고 94.5% 가 IP 주소라 장비로
     대표를 고르지 않습니다. 빈 param_name 은 빼지 않습니다 (R3 A)."""
 
     tool_type: FamilyToolType
@@ -304,7 +305,11 @@ class FamilyRecipeStatusRow(TypedDict):
 
 
 class FamilyActivityRow(TypedDict):
-    """표 D — 한 계열·한 fab·한 device 의 최근 측정 건수."""
+    """표 D — 한 계열·한 fab·한 device 의 최근 측정 건수.
+
+    fac_id 는 ebeam_tas_lot_hist 의 fab_id 라 표 A 의 det_fac_id 와 다를 수 있습니다 —
+    R4 device R7QA / R7QC 는 표 A 에서 "R4", 여기서는 "R3" 입니다 (office 확인
+    2026-11-04). 표 A 와는 (tool_type, lot_cd) 로 잇고 fac_id 를 조인 키에 넣지 않습니다."""
 
     tool_type: FamilyToolType
     fac_id: str

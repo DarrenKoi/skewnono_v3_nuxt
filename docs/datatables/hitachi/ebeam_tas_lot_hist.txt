@@ -15,6 +15,8 @@ Index -> ebeam_tas_lot_hist
               (2,641,395건, 2022년까지)를 통과시켰고, "20260806" 은 1,434,084건
               이었습니다. lte 쪽은 반대로 0건이 됩니다. "now-60d" 같은 date math 는
               keyword 에 먹지 않으므로 KST 날짜를 계산해 strftime("%Y%m%d") 로 보냅니다.
+              고친 뒤: 90일 하한 "20260806" → 1,434,819건, lot_id↔lot_cd bridge
+              (60일) lot_id 321,460 → 322,840 (office 확인 2026-11-04).
   event_tm -> date: 이벤트 시각. 창에는 쓰지 않고 "최신 문서" 정렬에만 씁니다.
               미래값이 6건 있고 dt 와 5.7% 어긋납니다 (office 확인 2026-11-04).
   lake_load_tm -> 14자리 숫자. date 로 잘못 파싱되므로 쓰지 않습니다.
@@ -32,6 +34,9 @@ Index -> ebeam_tas_lot_hist
 공정 스텝 field (user-confirmed 2026-07-30)
 
   fab_id       -> string: fab 대표 코드. **upstream 이 쓰는 이름**입니다.
+                          R4 device R7QA / R7QC 는 여기서 "R3" 이고 planstep 계열
+                          index 의 det_fac_id 는 "R4" 입니다 (office 확인 2026-11-04) —
+                          두 index 를 fab 으로 조인하지 마십시오.
                           우리 코드에서 fab_id 는 금지된 오칭이라 fab_name 으로
                           바꿔 왔지만(storage/recipe_tat/fail_issue/pm_planning),
                           그 규칙은 우리 필드 이름에 대한 것입니다. 이 index 가

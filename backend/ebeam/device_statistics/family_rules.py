@@ -23,10 +23,12 @@ from backend.ebeam.device_statistics.contracts import FamilyToolType
 # 만으로는 빠집니다 — 53 step (R1, office 확인 2026-11-04). 토큰을 "_" 로 더 쪼개지
 # 않고 세 이름을 그대로 넣은 것은, 쪼개면 VeritySEM·Provision 의 "..._CD" 까지
 # Normal 이 되어 사무실이 검증한 규칙 F 숫자가 움직이기 때문입니다.
+# 붙은 꼬리는 Provision 에 "CD2_PROV" 12 step 이 있고 VeritySEM 에는 없습니다
+# (V1, office 확인 2026-11-04).
 FAMILY_NORMAL_TOKENS: dict[FamilyToolType, frozenset[str]] = {
     "hv-sem": frozenset({"HV", "CD_HV", "CD2_HV", "CD3_HV"}),
     "veritysem": frozenset({"CD", "VERITY", "VRT"}),
-    "provision": frozenset({"CD", "PROV"}),
+    "provision": frozenset({"CD", "PROV", "CD2_PROV"}),
 }
 
 # only_sample — recipe 이름이 "_S" 또는 "_SE" 로 끝나는가 (Q16 BBB, office 확인

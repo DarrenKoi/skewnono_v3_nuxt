@@ -79,7 +79,9 @@ Index(alias)
                 94.5% 가 IP 주소라, eqp_id 로 대표 장비를 고르면 안 됩니다 (R2,
                 office 확인 2026-11-04). 그래서 device-statistics 표 B 는
                 (recipe, fab) 마다 한 벌이고, fab 으로도 안 정해지는 나머지는 가장
-                최근 문서를 씁니다 (S2 A / S3 A).
+                최근 문서를 씁니다 (S2 A / S3 A). fab 은 이 index 의 ``fac_id``
+                field (T3), "최근" 은 ``version`` 이 아니라 ``modified`` 기준입니다
+                (T4 B — office 확인 2026-11-04).
               - 접두사 5.68% 와 토큰 41.1% 는 겹치지 않아 합쳐서 약 46.8% 입니다 (S6).
               - device-statistics 표 A recipe 중 이 index 에서 찾는 비율은 40%
                 (ok 575 / not_found 868)입니다.

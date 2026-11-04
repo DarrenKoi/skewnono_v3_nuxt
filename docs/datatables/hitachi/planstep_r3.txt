@@ -17,7 +17,7 @@ Index -> sknn-planstep-r3-cd   (2026-10-27 부터. 아래 "장비 계열별 inde
   index                        장비 계열    문서 수   제품 수(prod_id)  distinct oper_desc
   sknn-planstep-r3-cd          CD-SEM      126,628       515              8,751
   sknn-planstep-r3-hv          HV-SEM        3,569       233                425
-  sknn-planstep-r3-verify      VeritySEM     1,200        92                199
+  sknn-planstep-r3-verity      VeritySEM     1,200        92                199
   sknn-planstep-r3-provision   Provision     7,564       275                670
 
   (숫자는 2026-10-27 사용자 전달값입니다. 적재가 계속되므로 늘어납니다.)
@@ -47,13 +47,13 @@ only_sample 은 축이 recipe 이름이라 그 규칙이 닿지 않으므로, �
 OFFICE-VERIFY 입니다.
 
 OFFICE-VERIFY (계열 index)
-- ~~`-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.~~
+- ~~`-hv` / `-verity` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.~~
   답: 아닙니다 — "_CAP_BASE" 가 있습니다 (아래 "계열 index 실측").
 - ~~네 index 모두 det_fac_id 가 "R3" 단일 값인지~~ — 답: 네 index 모두 아닙니다
-  (위 det_fac_id). -cd 의 다른 값과 device 수는 OFFICE-VERIFY.
-- index 이름: 2026-10-27 전달값은 `-verify`, 3차 회신(2026-11-04)은
-  `sknn-planstep-r3-verity` 로 적었습니다. 어느 쪽이 맞는지 OFFICE-VERIFY.
-- VeritySEM·Provision 에도 "CD_HV" 처럼 붙은 표식 꼬리가 있습니다(목록 미확인).
+  (위 det_fac_id).
+- ~~index 이름 `-verify` / `-verity`~~ — 답: `sknn-planstep-r3-verity` 입니다(T1,
+  office 확인 2026-11-04). 2026-10-27 기록의 `-verify` 는 오기였습니다.
+- 붙은 표식 꼬리: Provision 에 "CD2_PROV" 12 step, VeritySEM 에는 없음(V1).
 - suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index. (세 계열 index 에
   AVIS/ICANS 스텝이 있는 것은 확인 — office 확인 2026-11-04.)
 
@@ -118,9 +118,14 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
 
   det_fac_id -> string: fab 대표 코드. **"R3" 단일 값이 아닙니다.** 계열 index 세
                         곳 모두에 R4 device R7QA / R7QC 가 있고(둘 다 r3_device_grp
-                        에 있음), -cd 에도 R3 밖의 값이 있습니다(값·수 미확인) —
-                        office 확인 2026-11-04. fac_id 로 R3 만 고르면 그 device 가
-                        사라지므로, planstep 경로인지는 fac_id 로 가리지 마십시오.
+                        에 있음), -cd 에는 R4 행을 가진 device 가 98개 있습니다.
+                        다만 -cd 에 **R4 전용 device 는 0개**입니다 — 98개 모두 R3
+                        행도 가집니다 (office 확인 2026-11-04). fac_id 로 R3 만 고르면
+                        계열 index 의 R7QA / R7QC 가 사라지므로, planstep 경로인지는
+                        fac_id 로 가리지 마십시오.
+                        ★ R7QA / R7QC 는 ebeam_tas_lot_hist 에서 fab_id "R3" 입니다
+                        (T6). 표 A(R4)와 표 D(R3)를 fac_id 로 조인하면 같은 device 가
+                        두 fab 으로 갈리므로 lot_cd 로만 잇습니다.
                         (device_desc 계열의 fac_id 와 같은 의미이나 이름이 다릅니다.)
   prod_id -> string: 제품 ID. 예 "REXA_BASE".
                      **device code(lot_cd) + "_BASE" 형태입니다.** 접미사 "_BASE" 는

@@ -213,6 +213,8 @@ def test_family_normal_rule_markers():
     for desc in ("GT LINE CD", "GT LINE VERITY", "GT LINE VRT"):
         assert is_family_normal_step("veritysem", desc, "N"), desc
     assert is_family_normal_step("provision", "GT LINE PROV", "N")
+    assert is_family_normal_step("provision", "GT LINE CD2_PROV", "N")     # V1 — 12 step
+    assert not is_family_normal_step("veritysem", "GT LINE CD2_VRT", "N")  # VeritySEM 에는 없음
     assert not is_family_normal_step("provision", "GT LINE VRT", "N")
     # CD-SEM 규칙은 그대로 — 계열 표식으로 넓어지지 않습니다.
     assert not ends_with_pure_cd("CBL ETCH HV") and ends_with_pure_cd("CBL ETCH CD")
@@ -289,3 +291,18 @@ def test_sizes_follow_office_counts():
         assert len(planstep) == lots and len(planstep - catalog) == off, family
         assert len({s["lot_cd"] for s in steps if s["prod_id"].endswith("_CAP_BASE")}) == 3
         assert abs(len({(s["fac_id"], s["lot_cd"]) for s in steps if not s["prod_id"]}) - m_lots) <= 3
+
+
+def test_r4_devices_fab_differs_between_table_a_and_d():
+    """4차 회신 — R7QA / R7QC 는 표 A det_fac_id "R4", 표 D fab_id "R3".
+
+    A ↔ D 는 lot_cd 로 잇습니다. (fac_id, lot_cd) 로 조인하면 이 device 가 갈립니다.
+    """
+    seen = 0
+    for family in FAMILIES:
+        r4 = {s["lot_cd"] for s in mock.get_family_steps(family) if s["fac_id"] == "R4"}
+        activity = [a for a in mock.get_family_activity(family) if a["lot_cd"] in r4]
+        assert all(a["fac_id"] == "R3" for a in activity), family
+        seen += len(activity)
+        assert not any(a["fac_id"] == "R4" for a in mock.get_family_activity(family))
+    assert seen, "어긋난 device 가 표 D 에 하나도 없으면 집에서 이 함정이 안 보입니다"

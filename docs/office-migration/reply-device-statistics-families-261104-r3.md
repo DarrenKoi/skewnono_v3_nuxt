@@ -101,6 +101,9 @@ S12 _office_meas_hist.py 60일 창. now-60d date math 못 쓰니 날짜 계산�
 
 ## 5. 남은 확인
 
+4차 질문지로 보냈고, 회신은 `reply-device-statistics-families-261104-r4.md`에 기록했습니다.
+S3의 "가장 최근 문서"는 `modified` 기준으로 정정되었습니다.
+
 - S1 수정 `cp` 뒤 N4를 다시 재야 합니다(창이 살아난 상태의 total_recipe와 device 수).
 - S7 꼬리 목록과 step 수, S10 `-cd` det_fac_id의 다른 값과 device 수입니다.
 - 표 A index 이름이 `-verity`인지 `-verify`인지 확인해야 합니다.
