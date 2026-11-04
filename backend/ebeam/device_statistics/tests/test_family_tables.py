@@ -16,12 +16,14 @@ from backend.ebeam.device_statistics.contracts import (
 )
 from backend.ebeam.device_statistics.family_rules import (
     FAMILY_NORMAL_TOKENS,
+    hv_param_type,
     is_family_normal_step,
     is_family_sample_recipe,
     lot_cd_from_prod_id,
 )
 from backend.ebeam.device_statistics.para_buckets import has_non_measurement_name
 from backend.ebeam.device_statistics.providers.recipe_population import (
+    IMAGE_STEP_SUFFIXES,
     ends_with_pure_cd,
     is_measuring,
     is_sample_recipe,
@@ -82,7 +84,11 @@ def test_param_seq_is_dense_and_helpers_lead(family):
 
 def test_hvsem_has_mother_and_amat_has_type():
     hv = mock.get_family_params("hv-sem")
-    assert any(p["mother"] for p in hv) and all(p["param_type"] == "" for p in hv)
+    assert any(p["mother"] for p in hv)
+    # R4 — 이름 파생이라 약 41% 만 종류가 있고, 나머지는 "" 입니다.
+    typed = sum(1 for p in hv if p["param_type"]) / len(hv)
+    assert 0.33 < typed < 0.50, typed
+    assert {p["param_type"] for p in hv} <= {"", "WAFER", "LEVEL", "EDGE", "EDGE_EX"}
     for family in ("veritysem", "provision"):
         rows = mock.get_family_params(family)
         assert all(p["mother"] is None and p["region"] is None for p in rows)
@@ -92,9 +98,12 @@ def test_hvsem_has_mother_and_amat_has_type():
 @pytest.mark.parametrize("family", FAMILIES)
 def test_steps_follow_r3_vs_mfab_shape(family):
     steps = mock.get_family_steps(family)
-    r3 = [s for s in steps if s["fac_id"] == "R3"]
-    m = [s for s in steps if s["fac_id"] != "R3"]
+    # planstep 경로는 fac_id 가 아니라 prod_id 로 가립니다 — R4 device 가 섞여 있습니다.
+    r3 = [s for s in steps if s["prod_id"]]
+    m = [s for s in steps if not s["prod_id"]]
     assert r3 and m
+    assert {s["fac_id"] for s in r3} == {"R3", "R4"}
+    assert len({s["lot_cd"] for s in r3 if s["fac_id"] == "R4"}) == 2
     assert all(
         s["oper_seq"] is None and s["samp_seq"] is None and s["skip_yn"] == "" and s["prod_id"] == ""
         for s in m
@@ -194,6 +203,10 @@ def test_identity_duplicates_differ_by_oper_desc():
 
 def test_family_normal_rule_markers():
     assert is_family_normal_step("hv-sem", "CBL ETCH HV", "N")
+    for desc in ("GT LINE CD_HV", "GT LINE CD2_HV", "GT LINE CD3_HV"):   # R1 — 53 step
+        assert is_family_normal_step("hv-sem", desc, "N"), desc
+    assert not is_family_normal_step("hv-sem", "GT LINE CD_HV(E)", "N")
+    assert not is_family_normal_step("provision", "GT LINE X_CD", "N")  # "_" 로 쪼개지 않음
     assert not is_family_normal_step("hv-sem", "CBL ETCH CD", "N")    # HV 에 CD 표식 없음
     assert not is_family_normal_step("hv-sem", "ISO PTN HV(E)", "N")
     assert not is_family_normal_step("hv-sem", "CBL ETCH HV AVIS", "N")
@@ -221,3 +234,20 @@ def test_hv_params_carry_blank_and_duplicate_names():
     assert 0.02 < rows.count("") / len(rows) < 0.08
     dup = sum(1 for names in by_recipe.values() if len([n for n in names if n]) > len({n for n in names if n}))
     assert 0.35 < dup / len(by_recipe) < 0.65
+
+
+def test_hv_param_type_from_name_tokens():
+    """R4 — 토큰 EX > ED/EDGE > WF > LV, 그다음 CD-SEM 접두사."""
+    assert hv_param_type("L_EDGE_EX") == "EDGE_EX"      # EDGE 토큰도 있지만 EX 가 먼저
+    assert hv_param_type("EDGE_L_EX") == "EDGE_EX"
+    assert hv_param_type("L_ED") == "EDGE" and hv_param_type("EDGE_T") == "EDGE"
+    assert hv_param_type("P2_WF") == "WAFER" and hv_param_type("WAFER1") == "WAFER"
+    assert hv_param_type("P1_LV") == "LEVEL"
+    assert hv_param_type("PT_2") == "" and hv_param_type("") == ""
+    assert hv_param_type("WFX_1") == ""                 # 토큰 단위 — 부분 문자열이 아님
+
+
+def test_hv_image_steps_are_a_third():
+    steps = mock.get_family_steps("hv-sem")
+    image = sum(1 for s in steps if s["oper_desc"].split()[-1] in IMAGE_STEP_SUFFIXES)
+    assert 0.28 < image / len(steps) < 0.40

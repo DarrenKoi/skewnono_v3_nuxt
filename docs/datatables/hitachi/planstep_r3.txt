@@ -49,14 +49,21 @@ OFFICE-VERIFY 입니다.
 OFFICE-VERIFY (계열 index)
 - ~~`-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.~~
   답: 아닙니다 — "_CAP_BASE" 가 있습니다 (아래 "계열 index 실측").
-- 네 index 모두 det_fac_id 가 "R3" 단일 값인지 (index 이름에 r3 가 들어 있음).
+- ~~네 index 모두 det_fac_id 가 "R3" 단일 값인지~~ — 답: 계열 index 는 아닙니다
+  (R4 device 섞임, 위 det_fac_id). -cd 는 미확인.
 - suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index. (세 계열 index 에
   AVIS/ICANS 스텝이 있는 것은 확인 — office 확인 2026-11-04.)
 
 계열 index 실측 (office 확인 2026-11-04 — docs/office-migration/reply-device-statistics-families-261104.md)
 
 위 OFFICE-VERIFY 셋 중 둘이 답을 얻었고, 가정 몇 개가 틀렸습니다. **이 절은
--hv / -verify / -provision 에만 해당합니다.** -cd 에도 같은지는 확인하지 않았습니다.
+-hv / -verify / -provision 에서 잰 값입니다.** -cd 에 대해서는 2차 회신(같은 날,
+docs/office-migration/reply-device-statistics-families-261104-r2.md)이 skip "D" 와 "_CAP_BASE" 가 -cd 에도 있다고 확인했습니다.
+
+- HV-SEM only_normal 은 "CD_HV" / "CD2_HV" / "CD3_HV" 로 끝나는 53 step 을 더해야
+  합니다(R1). 표식은 HV / CD_HV / CD2_HV / CD3_HV 이고, 토큰을 "_" 로 쪼개지는
+  않습니다.
+- HV-SEM 의 AVIS/ICANS step 이 33.6% 입니다(2차 회신).
 
 - skip_yn 값은 "Y" / "N" / **"D"** 이고 빈 값은 0건입니다. D 는 N 과 같은
   성격이라 판정은 그대로 `!= "Y"` 입니다.
@@ -103,13 +110,19 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
 
 사용 field (user-confirmed 2026-07-30)
 
-  det_fac_id -> string: fab 대표 코드. 이 index 는 "R3" 단일 값입니다.
+  det_fac_id -> string: fab 대표 코드. -cd 는 "R3" 단일 값으로 압니다. **계열
+                        index 에는 R4 device 가 섞여 있습니다** — fac_id 로 R3 만
+                        고르면 R7QA / R7QC 두 device 가 사라집니다 (office 확인
+                        2026-11-04). planstep 경로인지는 fac_id 로 가리지 마십시오.
                         (device_desc 계열의 fac_id 와 같은 의미이나 이름이 다릅니다.)
   prod_id -> string: 제품 ID. 예 "REXA_BASE".
                      **device code(lot_cd) + "_BASE" 형태입니다.** 접미사 "_BASE" 는
                      해당 device 의 process integration 기본 설정(basic setting)을
                      뜻하며, 제품 이름에 관례적으로 붙습니다. 따라서 device code 는
                      prod_id 에서 "_BASE" 접미사를 떼어 얻습니다.
+                     ★ "_CAP_BASE" 도 있습니다 — -cd 에 3 device, 665행 (R7, office
+                     확인 2026-11-04), 계열 index 에 175행. "_BASE" 와 "_CAP" 을
+                     둘 다 떼야 카탈로그와 맞고, 질의는 두 prod_id 를 terms 로 겁니다.
   oper_id -> string: operation(공정) ID.
   main_oper_id -> string: 대표 operation ID. 여러 sample 스텝이 하나의 main operation
                           아래로 묶입니다.
@@ -152,7 +165,8 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
   bak_eqp_id_lval -> string: 백업 장비 목록을 슬래시로 이어붙인 문자열입니다.
                              예 "MCD018 / MCD018 / ...". 단일 문자열이므로 장비별로
                              쓰려면 분리해야 합니다.
-  skip_yn -> string: "Y" | "N". **"Y" 가 현재 측정 중인 스텝입니다** (아래 주의 참고).
+  skip_yn -> string: "Y" | "N" | "D". **"Y" 가 skip(측정하지 않음)입니다** (아래 ★ 절).
+                     -cd 에 D 7,458행, 빈 값은 네 index 모두 0건 (office 확인 2026-11-04).
   eqp_grp_id -> string: 장비 그룹 ID. 예 "G-MCD-01".
   reticle_id -> string: 레티클 ID.
   chg_tm -> string: 변경 시각. 예 "2025-07-17T12:26:01" — offset 없는 KST
@@ -185,12 +199,14 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
 ★ skip_yn — "Y" 만 제외하고 판정은 반드시 != "Y" (user-confirmed 2026-07-31)
 
 이름 그대로 **"Y" 가 skip(측정하지 않음)** 입니다. 그리고 값은 **세 가지**입니다 —
-"Y", "N", 그리고 **빈 값**(둘 다 아님). 따라서 "측정 중인 스텝" 을 고르는 조건은
+"Y", "N", 그리고 **"D"** (N 과 같은 성격). 빈 값은 네 index 모두 0건입니다
+(office 확인 2026-11-04 — 2026-07-31 에는 세 번째 값을 빈 값으로 알았습니다).
+따라서 "측정 중인 스텝" 을 고르는 조건은
 
     skip_yn != "Y"        (O)
-    skip_yn == "N"        (X — 빈 값인 스텝이 통째로 사라집니다)
+    skip_yn == "N"        (X — "D" 스텝이 통째로 사라집니다)
 
-입니다. 긍정 비교로 쓰면 빈 값 스텝이 조용히 빠지고, 그 손실은 예외가 아니라
+입니다. 긍정 비교로 쓰면 D 스텝이 조용히 빠지고, 그 손실은 예외가 아니라
 "숫자가 좀 작다" 로만 나타나 발견이 아주 늦습니다.
 
 정정 이력: 2026-07-30 에 이 문서는 **"Y 가 현재 측정 중"** 이라고 기록했습니다.
@@ -199,8 +215,7 @@ mother_normal 버킷을 동시에 뒤집으므로 어댑터와 mock 양쪽에서
 하나(`_is_measuring`)로 모아 두었습니다. 다시 뒤집지 마십시오.
 
 사무실 실행으로 재확인할 때는 scripts/probes/probe_planstep_r3.py 의 skip_yn 분포와
-recipe_id 채움 비율을 함께 봅니다. "Y"/"N" 두 버킷의 합이 전체 문서 수보다 작으면
-그 차이가 빈 값입니다.
+recipe_id 채움 비율을 함께 봅니다. "(빈 값)" 버킷이 다시 나타나면 적재 쪽 변화입니다.
 
 화면의 네 버킷 — 스텝을 어떻게 나누는가 (user-confirmed 2026-08-04)
 
@@ -292,7 +307,8 @@ recipe 수보다 한 자리수 배 많습니다. mock(providers/recipe_populatio
 주의 — mock 과 다른 점
 
 - **문서 수 규모**: 위 절 참고. mock 은 device 당 175~200 스텝, 실물은 2000+ 입니다.
-- **skip_yn 값 도메인**: 이 index 는 "Y"/"N"/**빈 값** 세 가지이고,
+- **skip_yn 값 도메인**: 이 index 는 "Y"/"N"/**"D"** 세 가지이고(2026-11-04 정정 —
+  그 전에는 빈 값으로 알았고 mock 도 빈 값을 냈습니다. 지금 mock 은 같은 자리에 "D"),
   mock(providers/statistics.py)은 과거 "Yes"/"No" 두 가지만 생성했습니다. mock 은
   2026-07-30 에 "Y"/"N" 으로, 2026-07-31 에 빈 값까지 섞도록 맞췄습니다 — 빈 값을
   만들지 않으면 `== "N"` 으로 잘못 쓴 코드가 집에서는 멀쩡히 통과합니다.
@@ -316,7 +332,7 @@ OFFICE-VERIFY
   mock 은 "한 recipe 당 최대 2 스텝, 스텝의 4%" 로 두었으므로, 실물이 3 스텝 이상을
   허용하면 그 값을 넓혀야 합니다.
 - prod_id 에서 "_BASE" 를 떼어낸 값이 r3_device_grp.lot_cd 어휘와 실제로 겹치는지.
-  ("_BASE" 외의 접미사가 존재하는지 포함.)
+  ("_BASE" 외의 접미사 — 답: "_CAP_BASE" 가 있습니다, 위 prod_id.)
 - chg_tm 이 정말 offset 없이 저장되는지(Z 나 +09:00 이 붙으면 9시간 어긋납니다).
 - 한 device 의 **최대** 문서 수 — 2000+ 라는 하한만 확인됐습니다(위 절). 10000 을
   넘는 device 가 있으면 단발 search 로는 못 가져오므로 페이지네이션이 필요합니다.

@@ -18,7 +18,8 @@ recipe 경로는 **fab 계열에 따라 갈라지는 3-hop 체인**입니다. �
     R3 / 연구개발                      M 계열 양산
     ─────────────────────────────      ─────────────────────────────
     r3_device_grp -> lot_cd            device_desc -> lot_cd
-    lot_cd + "_BASE" -> prod_id        lot_cd 그대로 (접미사 없음)
+    lot_cd + "_BASE"|"_CAP_BASE"       lot_cd 그대로 (접미사 없음)
+      -> prod_id
     sknn-planstep-r3-cd                ebeam_tas_lot_hist (최근 90일)
       oper_seq/samp_seq 로 정렬          순서 field 없음 -> oper_order.py
       oper_desc, skip_yn 있음            oper_det_desc, skip_yn 없음
@@ -55,10 +56,12 @@ Sample 판정만 축이 다릅니다 — 스텝명이 아니라 **recipe 이름*
 
 ★ skip_yn — "Y" 만 제외, 나머지는 전부 진행 중 (user-confirmed 2026-07-31)
 
-  ``skip_yn`` 은 **세 값**을 가집니다: "Y", "N", 그리고 **빈 값**. 따라서 판정은
+  ``skip_yn`` 은 **세 값**을 가집니다: "Y", "N", 그리고 **"D"** (-cd 에 7,458행).
+  빈 값은 네 planstep index 모두 0건입니다 (office 확인 2026-11-04 — 2026-07-31
+  에는 세 번째 값을 빈 값으로 알았습니다). D 는 N 과 같은 성격이라 판정은
   ``== "N"`` 이 아니라 반드시 **``!= "Y"``** 여야 합니다 — ``== "N"`` 으로 쓰면
-  빈 값인 스텝이 통째로 사라지고, 그 손실은 화면에 오류가 아니라 "숫자가 좀
-  작다" 로만 나타나 발견이 늦습니다.
+  D 스텝이 통째로 사라지고, 그 손실은 화면에 오류가 아니라 "숫자가 좀 작다" 로만
+  나타나 발견이 늦습니다.
 
   이름 그대로 **"Y" 가 skip(측정하지 않음)** 입니다. 2026-07-30 에 문서에
   기록되었던 "Y = 현재 측정 중" 은 틀린 내용이었고 2026-07-31 에 정정되었습니다
@@ -100,9 +103,8 @@ MIGRATION.md 의 Verify 명령입니다.
 
 OFFICE-VERIFY 목록
 ──────────────────
-1. ``skip_yn`` 의 빈 값 비율 — ``!= "Y"`` 규칙이 실제로 얼마나 많은 스텝을
-   살리는지. probe 의 skip_yn 분포에서 "Y"/"N" 합이 전체보다 작으면 그 차이가
-   빈 값입니다.
+1. ~~``skip_yn`` 의 빈 값 비율~~ — 답: 빈 값 0건, 세 번째 값은 "D" (office 확인
+   2026-11-04). 아래 probe 의 분포가 그대로 확인 수단입니다.
 2. ``.keyword`` 접미사 — 아래 상수는 문서 관례(analyzed text)를 가정합니다.
    실제 mapping 은 ``python -m scripts.probes.probe_planstep_r3`` 가 field 별로
    출력하므로 첫 실행에서 확정하십시오. bare keyword field 에 접미사를 붙이면
@@ -116,6 +118,9 @@ OFFICE-VERIFY 목록
    가 실제로 이 field 에 실리는지. 전각 ［／］ 는 NFKC 로 받지만, 그 밖의
    변형(괄호 누락·다른 구분자)은 룰 미정(Gray)으로 보입니다.
 6. M-fab ``oper_seq``/``samp_seq`` 는 원천에 없어 접두사 rank 로 합성합니다.
+7. ``dt.keyword`` 의 값 모양 — 창 하한을 "YYYY-MM-DD" 문자열로 비교합니다
+   (:data:`LOT_HIST_WINDOW_F`). dt 가 "YYYYMMDD" 이면 문자열 비교에서 모든 문서가
+   하한보다 커져 창이 사라집니다(숫자가 커지는 쪽 — 0건이 되지는 않음).
 """
 
 from __future__ import annotations
@@ -212,15 +217,21 @@ PROD_ID_KW = "prod_id.keyword"
 FULL_NAME_KW = "full_name.keyword"
 LOT_CD_KW = "lot_cd.keyword"
 OPER_DET_DESC_KW = "oper_det_desc.keyword"
+# 90일 창은 dt.keyword 로 자릅니다 (R6, office 확인 2026-11-04). event_tm 에는 미래값이
+# 6건 있고 dt 와 5.7% 어긋납니다. lake_load_tm 은 14자리 숫자라 date 로 잘못 파싱되므로
+# 쓰지 않습니다. event_tm 은 창이 아니라 "가장 최근 문서" 정렬과 chg_tm 표시에만 남습니다.
+LOT_HIST_WINDOW_F = "dt.keyword"
 LOT_HIST_TIME_F = "event_tm"
 # upstream field 이름은 fab_id 입니다 — 우리 코드의 fab_name 규칙은 우리 필드
 # 이름에 대한 것이고, index 가 저장한 이름으로 질의합니다 (ebeam_tas_lot_hist.txt).
 FAB_ID_KW = "fab_id.keyword"
 
-# device code -> prod_id. 다른 접미사가 있는지는 probe 의 [3] 단계가 셉니다.
-PROD_ID_SUFFIX = "_BASE"
+# device code -> prod_id. "_BASE" 만이 아니라 "_CAP_BASE" 가 있습니다 — -cd 에 3 device,
+# 665행 (R7, office 확인 2026-11-04). "_BASE" 만 질의하면 그 device 는 스텝 0건의
+# "원본 없음" 으로 보입니다. 계열 쪽 역변환은 family_rules.lot_cd_from_prod_id.
+PROD_ID_SUFFIXES = ("_BASE", "_CAP_BASE")
 
-# skip_yn 중 "이 스텝은 측정하지 않는다"를 뜻하는 값. 나머지("N" 과 **빈 값**)는
+# skip_yn 중 "이 스텝은 측정하지 않는다"를 뜻하는 값. 나머지("N" 과 **"D"**)는
 # 전부 진행 중입니다 — 판정은 _is_measuring() 하나만 씁니다 (모듈 docstring ★).
 SKIPPED = "Y"
 
@@ -368,14 +379,12 @@ def _active_lot_cds() -> set[str]:
     가 생깁니다. recipe_tat 의 60일과 상수를 공유하지 않는 이유는
     ebeam_tas_lot_hist.txt 에 있습니다.
     """
-    floor = (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    floor = _window_floor()
     aggs = {"lots": {"terms": {"field": LOT_CD_KW, "size": _MAX_ACTIVE_LOTS}}}
     result = _aggregate(
         LOT_HIST_INDEX,
         aggs,
-        _query([{"range": {LOT_HIST_TIME_F: {"gte": floor}}}]),
+        _query([{"range": {LOT_HIST_WINDOW_F: {"gte": floor}}}]),
     )
     buckets = result.get("lots", {}).get("buckets", [])
     if len(buckets) >= _MAX_ACTIVE_LOTS:
@@ -423,16 +432,14 @@ def get_meas_activity(fac_id: str) -> list[MeasActivityRow]:
     wanted = fac_id.strip().upper()
     if not wanted:
         return []
-    floor = (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    floor = _window_floor()
     aggs = {"lots": {"terms": {"field": LOT_CD_KW, "size": _MAX_ACTIVE_LOTS}}}
     result = _aggregate(
         LOT_HIST_INDEX,
         aggs,
         _query([
             {"term": {FAB_ID_KW: wanted}},
-            {"range": {LOT_HIST_TIME_F: {"gte": floor}}},
+            {"range": {LOT_HIST_WINDOW_F: {"gte": floor}}},
         ]),
     )
     buckets = result.get("lots", {}).get("buckets", [])
@@ -545,14 +552,23 @@ def _as_int(value: Any) -> int:
 def _is_measuring(skip_yn: str) -> bool:
     """이 스텝이 skip 되지 않았는가 — ``skip_yn != "Y"``.
 
-    ``== "N"`` 으로 쓰면 안 됩니다. 실제 값은 "Y"/"N" 외에 **빈 값**도 있어서
-    (user-confirmed 2026-07-31), 긍정 비교는 빈 값 스텝을 통째로 떨어뜨립니다.
+    ``== "N"`` 으로 쓰면 안 됩니다. 실제 값은 "Y"/"N" 외에 **"D"** 도 있어서
+    (office 확인 2026-11-04), 긍정 비교는 D 스텝을 통째로 떨어뜨립니다.
     그 손실은 예외가 아니라 "숫자가 좀 작다" 로만 나타나 발견이 늦습니다.
 
     ``avail_recipe`` 와 mother_normal 버킷이 모두 이 한 함수를 통과하므로,
     극성이 다시 바뀌더라도 두 곳이 어긋날 수 없습니다.
     """
     return (skip_yn or "").strip().upper() != SKIPPED
+
+
+def _window_floor() -> str:
+    """90일 창의 하한 — dt.keyword 와 같은 "YYYY-MM-DD" 문자열 (OFFICE-VERIFY #7).
+
+    keyword 의 range 는 문자열 비교라, 하한의 모양이 dt 와 같아야 합니다. KST 날짜로
+    자르므로 UTC 태그 함정(9시간)은 생기지 않습니다.
+    """
+    return (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime("%Y-%m-%d")
 
 
 # ────────────────────────── 스텝 조회 ──────────────────────────
@@ -566,7 +582,7 @@ def _r3_steps(lot_cd: str) -> list[dict[str, Any]]:
     """
     hits = _fetch_hits(
         PLANSTEP_INDEX,
-        _query([{"term": {PROD_ID_KW: f"{lot_cd}{PROD_ID_SUFFIX}"}}]),
+        _query([{"terms": {PROD_ID_KW: [f"{lot_cd}{suffix}" for suffix in PROD_ID_SUFFIXES]}}]),
         size=MAX_STEPS_PER_DEVICE,
         # prod_id 를 정렬 키의 맨 앞에 둡니다 (user-confirmed 2026-07-31).
         # 한 device 만 조회하는 지금은 무해하지만, 여러 prod_id 를 한 번에
@@ -611,9 +627,7 @@ def _mfab_steps(lot_cd: str) -> list[dict[str, Any]]:
     ``oper_seq``/``samp_seq`` 는 그 순위로 합성합니다 — 실제 공정 순서를
     주장하는 값이 아닙니다(화면 표기 의무).
     """
-    floor = (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    floor = _window_floor()
     aggs = {
         "steps": {
             "terms": {"field": OPER_DET_DESC_KW, "size": MAX_MFAB_STEP_NAMES},
@@ -633,7 +647,7 @@ def _mfab_steps(lot_cd: str) -> list[dict[str, Any]]:
         aggs,
         _query([
             {"term": {LOT_CD_KW: lot_cd}},
-            {"range": {LOT_HIST_TIME_F: {"gte": floor}}},
+            {"range": {LOT_HIST_WINDOW_F: {"gte": floor}}},
         ]),
     )
     steps_agg = result.get("steps", {})
@@ -1704,8 +1718,8 @@ if __name__ == "__main__":
                 f"avail={rows[0]['avail_recipe']}/{rows[0]['total_recipe']}"
             )
 
-    # OFFICE-VERIFY #1 — skip_yn 의 실제 값 분포. "Y"/"N" 말고 빈 값이 얼마나
-    #되는지가 `!= "Y"` 규칙이 살려 내는 스텝의 양입니다.
+    # skip_yn 의 실제 값 분포. "Y" 말고 "N"/"D" 가 `!= "Y"` 규칙이 살리는 스텝입니다.
+    # 빈 값은 0건이어야 합니다 (office 확인 2026-11-04).
     distribution: dict[str, int] = {}
     for step in steps:
         key = step["skip_yn"] or "(빈 값)"

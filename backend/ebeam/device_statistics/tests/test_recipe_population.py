@@ -363,7 +363,8 @@ CLASSIFICATION_EXAMPLES = [
     # (oper_desc, skip_yn, recipe_id)
     ("CBL ETCH CD", "N", "ADI/CD_BIAS_R000_001"),
     ("CBL ETCH CD", "Y", "ADI/CD_BIAS_R000_001"),   # skip -> 버킷 밖
-    ("CBL ETCH CD", "", "ADI/CD_BIAS_R000_001"),    # 빈 값 -> 측정 중
+    ("CBL ETCH CD", "D", "ADI/CD_BIAS_R000_001"),   # D -> 측정 중 (office 확인 2026-11-04)
+    ("CBL ETCH CD", "", "ADI/CD_BIAS_R000_001"),    # 빈 값(실물 0건) -> 측정 중
     ("ISO PTN CD(E)", "N", "AEI/OVERLAY_R000_002"),
     ("SNC2 CELL OPEN ETCH CLN CD(F)", "N", "QC/LINE_CD_R000_003_S"),
     # 괄호 꼬리가 단어인 경우 (user-confirmed 2026-08-05). 규칙이 꼬리의 길이를

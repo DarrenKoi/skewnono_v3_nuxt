@@ -29,10 +29,29 @@
 - HV-SEM 파라미터: hvsem_idp_ver 에서 읽고(커버리지 40% — ok 575 / not_found
   868, empty·failed 0), param_seq 는 raw_data 행 순서, 빈 Parameter 4.9%,
   이름이 겹치는 문서 52.7%. mother 있음·포인트 수 고정·Dummy/Align 맨 앞(Q5, Q6,
-  Q15 의 HV 칸 A). param_type 은 원천에 없어 빈 값입니다(Q4 HV = B).
+  Q15 의 HV 칸 A). param_type 은 원천에 없어 이름에서 파생합니다(Q4 HV = B, 아래 R4).
 - VeritySEM·Provision 은 측정 결과 파싱 전이라 사무실 표 C 가 **전부 not_found**
   입니다. mock 의 ok 비율은 화면 경로를 돌리려는 가정값입니다.
 - 시각(chg_tm / source_tm / as_of)은 offset 없는 KST wall-clock 입니다.
+
+2차 회신에서 확인된 것 (office 확인 2026-11-04 — reply-device-statistics-families-261104-r2.md)
+
+- HV-SEM 에는 "CD_HV" / "CD2_HV" / "CD3_HV" 로 끝나는 step 이 53건 있습니다(R1).
+  규칙 F 표식에 이 셋을 더했고, mock 이 같은 비율로 냅니다.
+- HV-SEM param_type 은 이름 안의 토큰에서 파생합니다(R4 B) — CD-SEM 접두사 규칙이
+  5.68%, 토큰 규칙(EX > ED/EDGE > WF > LV)이 41.1% 를 덮습니다. mock 은 CD-SEM
+  이름을 그 비율로 접두사형 / 토큰형("L_ED", "P2_WF") / 종류 없음("PT_2")으로
+  바꿉니다. 이름 자체는 지어낸 값이고 비율만 사무실 숫자입니다.
+- 빈 Parameter 행은 빼지 않고 param_seq 그대로 둡니다(R3 A).
+- **R4 device 가 계열 index 에 섞여 있습니다.** fac_id 로 R3 만 고르면 R7QA / R7QC
+  두 device 가 표 A 에서 사라집니다. mock 은 계열마다 R3 경로 device 2개를
+  fac_id "R4" 로 냅니다 — planstep 경로인지는 fac_id 가 아니라 prod_id 로 가립니다.
+  어느 계열의 device 인지는 회신에 없어 세 계열 모두에 넣었습니다(OFFICE-VERIFY).
+- HV-SEM 의 AVIS/ICANS step 이 33.6% 입니다. AMAT 은 비율을 모릅니다.
+- 같은 (recipe, version) 인데 파라미터가 다른 경우가 40건이고, 그중 33건은 fab
+  마다 하나로 정해집니다(R2). idp 의 eqp_id 는 배열이고 94.5% 가 IP 주소라 eqp_id
+  로 대표를 고를 수 없습니다. mock 은 아직 recipe 당 한 벌입니다 — 표 B 에 fab
+  축을 둘지는 3차 질문입니다.
 
 일부러 남긴 성질
 
@@ -41,19 +60,20 @@
   조인 키가 (tool_type, recipe_id) 여야 하는 이유를 집에서 보이게 하려는 것입니다.
 - **네 상태가 모두 나옵니다** (ok / empty / not_found / failed) — 다만 HV-SEM 은
   사무실 비율대로 ok / not_found 만 냅니다. empty·failed 는 AMAT 가정값에서 나옵니다.
-- **param_type 이 채워진 계열과 빈 계열이 섞입니다.** HV-SEM 은 빈 값, AMAT 은
-  채움(추정) — 두 경로가 모두 집에서 실행됩니다.
+- **param_type 이 빈 행이 섞입니다.** HV-SEM 은 이름 파생이라 약 59% 가 빈 값,
+  AMAT 은 원천 column(추정)으로 채움 — 두 경로가 모두 집에서 실행됩니다.
 - **표 A 에 있는데 표 D 에 없는 device**(계획은 있는데 최근 90일 측정 없음)와
   **표 D 에만 있는 device**(측정은 있는데 step 원본 없음 — CD-SEM 의 RX1R)가 섞입니다.
 
 OFFICE-VERIFY
 
-- AMAT 의 param_type(Q4), 포인트 수 고정(Q5), mother(Q6), Dummy/Align 위치(Q15),
+- AMAT 의 param_type(Q4 / R9), 포인트 수 고정(Q5), mother(Q6), Dummy/Align 위치(Q15),
   상태 비율 — 측정 결과 파싱 후 확정합니다.
-- 같은 (tool_type, recipe_id) 가 장비마다 다른 파라미터를 가질 수 있습니다(Q10 B).
-  대표 장비 규칙은 아직 없어, mock 은 recipe 당 한 벌만 만듭니다.
+- 같은 (tool_type, recipe_id) 가 장비마다 다른 파라미터를 가질 수 있습니다(Q10 B,
+  R2 — 위 2차 회신 절). 표 B 의 대표 규칙은 아직 없어, mock 은 recipe 당 한 벌만
+  만듭니다.
 - 비율만 모르는 것: skip "D", "_CAP_BASE" device, 카탈로그 밖 device, "_DENSE",
-  AVIS/ICANS step(Q17 — 있는 것은 확인).
+  AMAT 의 AVIS/ICANS step(Q17 — 있는 것은 확인).
 
 eqp_id 는 sem_list mock 에서 **그 계열·그 fab 의 장비**만 고릅니다. 장비가 없는 fab
 에는 step 을 만들지 않습니다.
@@ -84,6 +104,7 @@ from backend.ebeam.device_statistics.providers.recipe_params import (
     _has_helper_params,
 )
 from backend.ebeam.device_statistics.family_rules import (
+    hv_param_type,
     is_family_sample_recipe,
     lot_cd_from_prod_id,
 )
@@ -111,6 +132,8 @@ class _Spec(TypedDict):
     dup_identity_ratio: float        # (prod_id, oper_seq, samp_seq) 중복 / steps (office)
     active_ratio: float              # 표 D lots / 표 A lots (office)
     markers: tuple[str, ...]         # step 이름 마지막 토큰 후보 = only_normal 표식 (Q7)
+    marker_weights: tuple[float, ...]
+    image_step_ratio: float          # AVIS/ICANS step 비율 (Q17 / 2차 회신)
     source_kind: str                 # "idp" | "measurement"
     has_mother: bool                 # OFFICE-VERIFY (Q6) — AMAT
     typed_params: bool               # OFFICE-VERIFY (Q4) — AMAT
@@ -126,7 +149,11 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
         "seed": 20261102, "r3_lots": 143, "r3_steps": (14, 27),
         "m_lots_per_fab": 10, "m_steps": (4, 12),
         "shared_recipe_ratio": 0.60, "dup_identity_ratio": 0.001, "active_ratio": 0.48,
-        "markers": ("HV",),
+        # CD_HV 계열 53 / 3,310 step (R1, office 확인 2026-11-04).
+        "markers": ("HV", "CD_HV", "CD2_HV", "CD3_HV"),
+        "marker_weights": (0.952, 0.024, 0.012, 0.012),
+        "image_step_ratio": 0.336,   # office 확인 2026-11-04
+        # typed_params=False: 원천 column 이 없습니다. 이름 파생은 family_rules.hv_param_type.
         "source_kind": "idp", "has_mother": True, "typed_params": False,
         # office: ok 575 / not_found 868 / empty 0 / failed 0 (idp 커버리지 40%).
         "status_weights": (0.40, 0.0, 0.60, 0.0),
@@ -135,7 +162,8 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
         "seed": 20261103, "r3_lots": 166, "r3_steps": (16, 31),
         "m_lots_per_fab": 10, "m_steps": (3, 8),
         "shared_recipe_ratio": 0.56, "dup_identity_ratio": 0.007, "active_ratio": 0.61,
-        "markers": ("CD", "VERITY", "VRT"),
+        "markers": ("CD", "VERITY", "VRT"), "marker_weights": (1, 1, 1),
+        "image_step_ratio": 0.03,    # OFFICE-VERIFY
         "source_kind": "measurement", "has_mother": False, "typed_params": True,
         # office 는 아직 전부 not_found 입니다(측정 결과 파싱 전). 화면 경로를 집에서
         # 돌리려고 ok 를 둔 가정값입니다 — OFFICE-VERIFY (파싱 후 비율).
@@ -145,14 +173,14 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
         "seed": 20261104, "r3_lots": 244, "r3_steps": (22, 42),
         "m_lots_per_fab": 10, "m_steps": (4, 12),
         "shared_recipe_ratio": 0.61, "dup_identity_ratio": 0.0033, "active_ratio": 0.40,
-        "markers": ("CD", "PROV"),
+        "markers": ("CD", "PROV"), "marker_weights": (1, 1),
+        "image_step_ratio": 0.03,    # OFFICE-VERIFY
         "source_kind": "measurement", "has_mother": False, "typed_params": True,
         "status_weights": (0.88, 0.02, 0.07, 0.03),   # veritysem 과 같은 이유의 가정값
     },
 }
 
 STATUSES = ("ok", "empty", "not_found", "failed")
-IMAGE_STEP_RATIO = 0.03          # OFFICE-VERIFY (Q17 — 있는 것은 확인, 비율은 모름)
 NO_STEP_RATIO = 0.03             # 표 D 에만 있는 device 비율 (표 A device 수 대비)
 WINDOW_DAYS = 90
 SKIP_D_RATIO = 0.05              # OFFICE-VERIFY — "D" 가 있다는 것만 확인
@@ -161,6 +189,12 @@ OFF_CATALOG_RATIO = 0.03         # 카탈로그에 없는 R3 device (Q11 B — �
 DENSE_RATIO = 0.03               # "_DENSE" 로 끝나는 비-Sample recipe (OFFICE-VERIFY)
 HV_BLANK_PARAM_RATIO = 0.049     # hvsem_idp_ver 빈 Parameter 4.9% (office 확인 2026-11-04)
 HV_DUP_NAME_RATIO = 0.527        # 이름이 겹치는 파라미터가 있는 recipe 52.7% (같음)
+# HV-SEM param_type 커버리지 (R4, office 확인 2026-11-04). 확률은 CD-SEM 이름 중
+# 종류가 있는 것(약 71%)에 거는 값이라 전체 비율로는 5.7% / 41% 가 됩니다.
+HV_PREFIX_NAME_P = 0.08
+HV_TOKEN_NAME_P = 0.50
+R4_LOTS = 2                      # R7QA / R7QC (R4 device, office 확인 2026-11-04)
+_HV_TOKEN = {"WAFER": "WF", "LEVEL": "LV", "EDGE": "ED", "EDGE_EX": "EDGE_EX"}
 
 
 def _kst(dt) -> str:
@@ -202,8 +236,9 @@ def _step_name(rng: random.Random, spec: _Spec) -> str:
     name = _cd_step_name(rng)
     head, _, last = name.rpartition(" ")
     if last.startswith("CD"):
-        name = f"{head} {rng.choice(spec['markers'])}{last[2:]}"
-    if rng.random() < IMAGE_STEP_RATIO:
+        marker = rng.choices(spec["markers"], weights=spec["marker_weights"])[0]
+        name = f"{head} {marker}{last[2:]}"
+    if rng.random() < spec["image_step_ratio"]:
         name += " " + rng.choice(sorted(IMAGE_STEP_SUFFIXES))
     return name
 
@@ -241,7 +276,7 @@ def _pick_recipe(rng, spec, rows, lot_cd, idx) -> str:
     return _recipe_name(rng, lot_cd, idx)
 
 
-def _r3_steps(rng, tool_type, spec, lot_cd, prod_id, n, eqps, base_time) -> list[FamilyStepRow]:
+def _r3_steps(rng, tool_type, spec, fac_id, lot_cd, prod_id, n, eqps, base_time) -> list[FamilyStepRow]:
     rows: list[FamilyStepRow] = []
     oper_seq, samp_seq = 0, 1
     for idx in range(n):
@@ -256,7 +291,7 @@ def _r3_steps(rng, tool_type, spec, lot_cd, prod_id, n, eqps, base_time) -> list
         while dup and oper_desc == rows[-1]["oper_desc"]:
             oper_desc = _step_name(rng, spec)
         rows.append({
-            "tool_type": tool_type, "fac_id": "R3", "prod_id": prod_id, "lot_cd": lot_cd,
+            "tool_type": tool_type, "fac_id": fac_id, "prod_id": prod_id, "lot_cd": lot_cd,
             "oper_id": f"{rng.choice(_OPER_PREFIXES)}-{rng.randint(100, 999)}",
             "oper_desc": oper_desc, "oper_seq": oper_seq, "samp_seq": samp_seq,
             "recipe_id": _pick_recipe(rng, spec, rows, lot_cd, idx), "eqp_id": rng.choice(eqps),
@@ -328,7 +363,10 @@ def _recipe_tables(
             params.append({
                 "tool_type": tool_type, "recipe_id": recipe_id, "param_seq": seq,
                 "param_name": param["name"],
-                "param_type": _param_type(param["name"]) if spec["typed_params"] else "",
+                "param_type": (
+                    hv_param_type(param["name"]) if tool_type == "hv-sem"
+                    else _param_type(param["name"]) if spec["typed_params"] else ""
+                ),
                 "point_count": param["point_count"],
                 "mother": param["mother"] if spec["has_mother"] else None,
                 "region": param["region"] if spec["has_mother"] else None,
@@ -340,11 +378,25 @@ def _hv_raw_names(built: list, prng: random.Random) -> None:
     """hvsem_idp_ver raw_data 의 이름 성질을 옮깁니다 (office 확인 2026-11-04).
 
     빈 Parameter 가 행의 4.9%, 이름이 겹치는 파라미터가 있는 문서가 52.7% 입니다.
+    종류는 이름 안의 토큰으로만 드러납니다(R4) — CD-SEM 접두사형 이름은 일부만
+    남기고 나머지를 토큰형·종류 없음으로 바꿉니다.
     표 B 의 정체성은 (recipe_id, param_seq) 라 이름은 키가 아닙니다 — 이름으로
     접거나 dict 키로 쓰는 코드가 집에서 깨지게 합니다. 맨 앞 Dummy·Align 은
     건드리지 않습니다(그 판정은 이름 + 위치).
     """
     measured = [p for p in built if not has_non_measurement_name(p["name"])]
+    for param in measured:
+        kind = _param_type(param["name"])
+        if kind not in _HV_TOKEN:
+            continue
+        rest = param["name"][len(kind):].strip("_") or "1"
+        roll = prng.random()
+        if roll < HV_PREFIX_NAME_P:
+            continue                                   # CD-SEM 접두사 규칙으로 잡히는 5.7%
+        param["name"] = (
+            f"{rest}_{_HV_TOKEN[kind]}" if roll < HV_PREFIX_NAME_P + HV_TOKEN_NAME_P
+            else f"PT_{rest}"                          # 어느 규칙으로도 종류가 없음
+        )
     if prng.random() < HV_DUP_NAME_RATIO and len(measured) >= 2:
         measured[-1]["name"] = measured[0]["name"]
     for param in measured:
@@ -377,12 +429,14 @@ def _tables(tool_type: FamilyToolType):
             assert not known & set(extra)
             lots += extra
             cap_lots = set(rng.sample(lots[:-len(extra)], max(1, round(len(lots) * CAP_LOT_RATIO))))
+            r4_lots = set(rng.sample(sorted(set(lots[:-len(extra)]) - cap_lots), R4_LOTS))
         lots_by_fab[fac_id] = lots
         for lot_cd in lots:
             if fac_id == "R3":
                 prod_id = lot_cd + ("_CAP_BASE" if lot_cd in cap_lots else "_BASE")
                 assert lot_cd_from_prod_id(prod_id) == lot_cd
-                steps += _r3_steps(rng, tool_type, spec, lot_cd, prod_id,
+                det_fac_id = "R4" if lot_cd in r4_lots else "R3"
+                steps += _r3_steps(rng, tool_type, spec, det_fac_id, lot_cd, prod_id,
                                    rng.randint(*spec["r3_steps"]), tools[fac_id], mock.BASE_TIME)
             else:
                 steps += _m_steps(rng, tool_type, spec, fac_id, lot_cd,

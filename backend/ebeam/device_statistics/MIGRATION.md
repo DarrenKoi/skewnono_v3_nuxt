@@ -11,8 +11,9 @@ office.py` at the office and run the Verify command at the bottom.
 돕니다. 사무실에서는 `cp office_example.py office.py` 만 하면 켜집니다.
 
 One fact is easy to re-break: **`skip_yn` — `"Y"` means skipped, and the field
-has THREE values** (`"Y"`, `"N"`, and blank). Selecting measured steps is
-`!= "Y"`, never `== "N"` — the latter silently drops every blank-valued step.
+has THREE values** (`"Y"`, `"N"`, and `"D"`; blank is 0 rows in all four
+planstep indexes, office 확인 2026-11-04). Selecting measured steps is
+`!= "Y"`, never `== "N"` — the latter silently drops every `"D"` step.
 Both the adapter and the mock funnel this through one `_is_measuring()`.
 
 The remaining OFFICE-VERIFY items are listed in the adapter's module
@@ -157,7 +158,8 @@ docstring.
   the fab's catalog lots. Absolute values are fabricated; only the ranking
   behavior is being stood in for.
 - Office data source: the same `ebeam_tas_lot_hist` terms aggregation as
-  `_active_lot_cds`, narrowed by `fab_id` term + 90-day `event_tm` range;
+  `_active_lot_cds`, narrowed by `fab_id` term + 90-day `dt.keyword` range (not `event_tm`,
+  office 확인 2026-11-04);
   `doc_count` per `lot_cd.keyword` bucket is the measurement count
   (`ebeam_tas_lot_hist.txt` activity-count usage). OFFICE-VERIFY: confirm
   R3 documents carry `fab_id="R3"` — if not, R3 ranks come back empty and
@@ -214,7 +216,8 @@ docstring.
   recipe carry an identical `para_*` block because office derives those counts
   from the recipe's parameters, not from the step.
 - Office data source: the **latest** weekly point is computed live from the
-  step sources (R3 `sknn-planstep-r3` by `prod_id = lot_cd + "_BASE"`, M-fab
+  step sources (R3 `sknn-planstep-r3-cd` by `prod_id` in `lot_cd + "_BASE"` /
+  `lot_cd + "_CAP_BASE"`, M-fab
   `ebeam_tas_lot_hist` over the last 90 days), joined to `cdsem_idp_ver` for
   each recipe's newest `parameters` blob. Because this route only ever reads
   the latest date, it never touches the weekly snapshots. Bucket membership

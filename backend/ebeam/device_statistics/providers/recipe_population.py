@@ -183,7 +183,8 @@ def is_image_step(oper_desc: str) -> bool:
 def is_measuring(skip_yn: str) -> bool:
     """이 스텝이 skip 되지 않았는가 — ``skip_yn != "Y"``.
 
-    실물 값 도메인은 "Y"/"N"/빈 값 세 가지라 판정은 ``!= "Y"`` 하나뿐입니다.
+    실물 값 도메인은 "Y"/"N"/"D" 세 가지라(빈 값 0건, office 확인 2026-11-04)
+    판정은 ``!= "Y"`` 하나뿐입니다. 빈 값이 와도 측정 중으로 봅니다.
     """
     return (skip_yn or "").strip().upper() != "Y"
 
@@ -399,7 +400,8 @@ PARA_RANGES = {
 }
 
 SKIPPED_RATIO = 0.15
-BLANK_SKIP_YN_RATIO = 0.15
+# -cd 의 "D" 비율. 7,458행이라는 것만 알고 전체 대비 비율은 모릅니다 — OFFICE-VERIFY.
+SKIP_D_RATIO = 0.15
 
 # 정체성 풀 seed 를 주차 seed 와 갈라놓는 salt. 주차별 rng 와 섞이면 풀이 주차마다
 # 달라져 recipe_id 안정성이 깨집니다.
@@ -474,12 +476,16 @@ def week_scale(trajectory: str, point_index: int, points: int) -> float:
 
 
 def _skip_yn(rng: random.Random) -> str:
-    """실물의 세 값("Y" / "N" / 빈 값)을 그 비율대로 만듭니다."""
+    """실물의 세 값("Y" / "N" / "D")을 만듭니다. 빈 값은 0건입니다 (office 확인 2026-11-04).
+
+    2026-11-04 전에는 세 번째 값을 빈 값으로 냈습니다. 같은 자리를 "D" 로 바꿨을 뿐이라
+    rng 호출 수와 화면 숫자는 그대로입니다.
+    """
     roll = rng.random()
     if roll < SKIPPED_RATIO:
         return "Y"
-    if roll < SKIPPED_RATIO + BLANK_SKIP_YN_RATIO:
-        return ""
+    if roll < SKIPPED_RATIO + SKIP_D_RATIO:
+        return "D"
     return "N"
 
 

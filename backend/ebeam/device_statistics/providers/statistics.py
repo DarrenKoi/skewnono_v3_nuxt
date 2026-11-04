@@ -45,12 +45,12 @@ docs/datatables/hitachi/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입
 - skip_yn 은 R3 planstep 의 field 입니다. M fab 경로에는 없고, "측정 중" 판정을
   최근 3개월 창에 나타나는지로 대신합니다.
 
-skip_yn 은 실물과 값 도메인·극성을 맞췄습니다 (user-confirmed 2026-07-31) —
-**"Y"/"N"/빈 값 세 가지**이고, 이름 그대로 **"Y" 가 skip(측정하지 않음)**
-입니다. 따라서 판정은 반드시 ``!= "Y"``(:func:`_is_measuring`)이며 ``== "N"``
-이 아닙니다 — 긍정 비교로 쓰면 빈 값 스텝이 통째로 빠지고, 그 손실은 예외가
-아니라 "숫자가 좀 작다" 로만 나타납니다. 이 mock 이 일부러 빈 값을 섞는 이유가
-그것입니다.
+skip_yn 은 실물과 값 도메인·극성을 맞췄습니다 — **"Y"/"N"/"D" 세 가지**이고
+(-cd 에 D 7,458행, 빈 값 0건 — office 확인 2026-11-04. 2026-07-31 에는 세 번째
+값을 빈 값으로 알았습니다), 이름 그대로 **"Y" 가 skip(측정하지 않음)** 입니다.
+따라서 판정은 반드시 ``!= "Y"``(:func:`_is_measuring`)이며 ``== "N"`` 이
+아닙니다 — 긍정 비교로 쓰면 D 스텝이 통째로 빠지고, 그 손실은 예외가 아니라
+"숫자가 좀 작다" 로만 나타납니다. 이 mock 이 일부러 D 를 섞는 이유가 그것입니다.
 
 이 값은 두 번 정정되었습니다: "Yes"/"No" -> "Y"/"N"(2026-07-30), 그리고
 "Y = 측정 중" 이라는 잘못된 극성 -> **"Y" = skip**(2026-07-31). 되돌리지
@@ -207,7 +207,7 @@ def _to_recipe_row(
         "eqp_id": identity["eqp_id"],
         "recipe_id": identity["recipe_id"],
         # "Y" == skip(측정하지 않음) (user-confirmed 2026-07-31). 값 도메인은
-        # 실물과 같은 "Y"/"N"/빈 값 세 가지이며, skip 비율 15% 를 유지해 측정
+        # 실물과 같은 "Y"/"N"/"D" 세 가지이며, skip 비율 15% 를 유지해 측정
         # 비율은 예전과 같은 약 85% 입니다 — 극성 표기만 바로잡은 것이라 화면
         # 숫자는 뒤집히지 않습니다.
         "skip_yn": identity["skip_yn"],
@@ -284,8 +284,8 @@ def _summarize(
     recipes: list[RecipeInfoRow]
 ) -> SummaryRow:
     total_recipe = len(recipes)
-    # 측정 중인 recipe 수. "Y" 가 skip 이므로 그 외 전부(빈 값 포함)를 셉니다 —
-    # `== "N"` 으로 세면 빈 값 스텝이 빠져 운용 레시피수가 조용히 작아집니다.
+    # 측정 중인 recipe 수. "Y" 가 skip 이므로 그 외 전부("D" 포함)를 셉니다 —
+    # `== "N"` 으로 세면 D 스텝이 빠져 운용 레시피수가 조용히 작아집니다.
     avail_recipe = sum(1 for r in recipes if _is_measuring(r["skip_yn"]))
 
     return {

@@ -7,7 +7,12 @@ recipe_tat 등 대시보드에서 "현재 생산 중인 device(lot_cd)" 목록�
 Index -> ebeam_tas_lot_hist
 
 핵심 사용 field
-  event_tm -> date: 이벤트 시각. 기간(range) 필터 기준 time_field
+  dt       -> keyword(dt.keyword): 날짜. **device-statistics 의 90일 창은 이 field 로
+              자릅니다** (office 확인 2026-11-04). 값 모양("YYYY-MM-DD" 가정)은
+              OFFICE-VERIFY 입니다.
+  event_tm -> date: 이벤트 시각. 기간(range) 필터 기준 time_field (recipe_tat 등).
+              미래값이 6건 있고 dt 와 5.7% 어긋납니다 (office 확인 2026-11-04).
+  lake_load_tm -> 14자리 숫자. date 로 잘못 파싱되므로 쓰지 않습니다.
               시간대는 사무실 인덱스 공통 규약(offset 없는 KST wall-clock,
               README.md "표기 규칙")을 따른다고 봅니다. 이 field 자체에서
               확인한 값은 아니므로 OFFICE-VERIFY 입니다 — 조회 결과의
@@ -128,8 +133,10 @@ M fab 경로는 다음과 같습니다.
    ★ 사무실 권고(office 확인 2026-11-04, device-statistics 계열 추출): 창은
    event_tm 이 아니라 **dt.keyword** 로 자르십시오. event_tm 에는 미래값이 6건
    있고 dt 와 5.7% 어긋납니다. lake_load_tm 은 14자리 숫자라 date 로 잘못
-   파싱되므로 쓰지 않습니다. 지금 CD-SEM 어댑터는 event_tm 을 씁니다 —
-   바꾸면 CD-SEM 화면 숫자가 움직이므로 따로 결정합니다(OFFICE-VERIFY). recipe_tat 의 60일과
+   파싱되므로 쓰지 않습니다. CD-SEM 경로도 dt.keyword 로 바꿉니다(R6, office 확인
+   2026-11-04) — office_example.py 의 LOT_HIST_WINDOW_F. keyword 라 range 가 문자열
+   비교이므로 하한을 "YYYY-MM-DD" 로 보냅니다. dt 의 실제 값 모양은 OFFICE-VERIFY 입니다.
+   event_tm 은 "최신 문서" 정렬과 표시에만 남습니다. recipe_tat 의 60일과
    다른 창이므로 상수를 공유하지 마십시오. 3개월을 쓰는 근거는 "그 안에는 fab 에서
    최소 한 번의 공정이 돌았을 것" 이라는 가정입니다 — 이 창을 좁히면 스텝이 통째로
    비는 device 가 생깁니다.

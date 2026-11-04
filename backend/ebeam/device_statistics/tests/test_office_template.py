@@ -82,3 +82,37 @@ def test_recipe_axes_use_the_shared_description_parser():
     assert office_example.parse_device_desc is desc_format.parse_device_desc
     assert not hasattr(office_example, "_family_of")
     assert not hasattr(office_example, "_phase_of")
+
+
+def test_r3_steps_query_both_prod_id_suffixes(monkeypatch):
+    """-cd 에도 "_CAP_BASE" device 가 3개 있습니다 (R7, office 확인 2026-11-04).
+
+    "_BASE" 만 질의하면 그 device 는 오류 없이 스텝 0건이 됩니다.
+    """
+    seen = {}
+
+    def fake_fetch(index, query, **_):
+        seen["query"] = query
+        return []
+
+    monkeypatch.setattr(office_example, "_fetch_hits", fake_fetch)
+    office_example._r3_steps("RH0V")
+    assert "'RH0V_BASE'" in repr(seen["query"]) and "'RH0V_CAP_BASE'" in repr(seen["query"])
+
+
+def test_mfab_window_is_dt_keyword_date_string(monkeypatch):
+    """90일 창은 event_tm 이 아니라 dt.keyword (R6), 하한은 "YYYY-MM-DD"."""
+    seen = {}
+
+    def fake_aggregate(index, aggs, query):
+        seen["query"] = query
+        return {}
+
+    monkeypatch.setattr(office_example, "_aggregate", fake_aggregate)
+    office_example._active_lot_cds.cache_clear()
+    office_example._active_lot_cds()
+    office_example._active_lot_cds.cache_clear()   # 가짜 빈 집합을 남기지 않습니다
+    ranges = repr(seen["query"])
+    assert "'dt.keyword'" in ranges and "event_tm" not in ranges
+    floor = office_example._window_floor()
+    assert len(floor) == 10 and floor[4] == floor[7] == "-"

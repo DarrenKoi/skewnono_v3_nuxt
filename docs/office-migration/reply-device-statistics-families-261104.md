@@ -141,4 +141,4 @@ only_normal 규칙 확정.
 남은 확인 사항(규칙 F 해석, Q10 대표 장비, HV-SEM 빈 Parameter 처리, param_type 파생,
 카탈로그 밖 device, CD-SEM의 `dt.keyword`·`_CAP_BASE`·skip `D`, AMAT 미확정 칸, 계열별
 숫자와 저장 이름)은 `to-office-device-statistics-families-261104.md`로 보냈습니다.
-회신이 오면 이 문서와 같은 형식으로 기록합니다.
+회신은 같은 날 받았고 `reply-device-statistics-families-261104-r2.md`에 기록했습니다.

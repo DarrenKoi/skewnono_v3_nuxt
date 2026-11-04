@@ -61,6 +61,7 @@ from backend._runtime.office_redis import (  # noqa: E402
     redis_client,
 )
 from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
+from backend.ebeam.device_statistics.family_rules import lot_cd_from_prod_id  # noqa: E402
 
 
 INDEX = "sknn-planstep-r3-cd"  # 옛 sknn-planstep-r3 는 업데이트 중단 (2026-10-27)
@@ -97,8 +98,9 @@ ENUM_FIELDS = ("det_fac_id", "main_oper_yn", "skip_yn", "bak_eqp_yn", "eqp_grp_i
 NUMERIC_FIELDS = ("oper_seq", "samp_seq")
 
 # user-confirmed 2026-07-31: "Y" means SKIPPED, exactly as the field name reads.
-# The field has THREE values - "Y", "N", and blank - so "is this step measured"
-# is `!= "Y"`, never `== "N"`. (An earlier note claiming "Y" meant "currently
+# The field has THREE values - "Y", "N", and "D" (blank was the 2026-07-31
+# guess; office 확인 2026-11-04: blank is 0 rows in all four indexes, D is
+# N-like) - so "is this step measured" is `!= "Y"`, never `== "N"`. (An earlier note claiming "Y" meant "currently
 # measuring" was withdrawn; docs/datatables/hitachi/planstep_r3.txt has the history.)
 SKIPPED = "Y"
 
@@ -269,7 +271,8 @@ def stage_prod_id_bridge(search: OSSearch, props: dict[str, Any], limit: int) ->
         print(f"  OTHER suffixes present ({len(others):,}) - e.g. {', '.join(others[:8])}")
         print("      -> stripping only '_BASE' would silently drop these products.")
 
-    derived = {p[: -len(PROD_ID_SUFFIX)] if p.endswith(PROD_ID_SUFFIX) else p for p in prod_ids}
+    # "_CAP_BASE" also ends with "_BASE" - strip both (office 확인 2026-11-04).
+    derived = {lot_cd_from_prod_id(p) for p in prod_ids}
 
     # The other half of the bridge lives in Redis, so this is the one stage that
     # touches both stores. Failing to reach Redis must not kill the OpenSearch
