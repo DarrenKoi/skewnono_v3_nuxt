@@ -438,7 +438,11 @@ def composite_buckets(
 _DEVICE_DESC_KEY = "device_desc"          # Redis parquet DataFrame (M-fab catalog)
 _R3_DEVICE_GRP_KEY = "r3_device_grp"      # Redis parquet DataFrame (R3/R&D catalog)
 _LOT_HIST_INDEX = "ebeam_tas_lot_hist"    # OpenSearch: fab-system measurement history
-_LOT_HIST_TIME_F = "event_tm"             # date field on the lot-history index
+# The window is cut on dt.keyword, a "YYYYMMDD" string — not event_tm, which has
+# future values and disagrees with dt on 5.7% of docs (office 확인 2026-11-04).
+# keyword range is a string compare, so the floor must be "YYYYMMDD" too: a
+# "YYYY-MM-DD" floor sorts below every dt and silently reads the whole index.
+_LOT_HIST_WINDOW_F = "dt.keyword"
 CURRENT_WINDOW_DAYS = 60                  # a lot_cd active within this window = current
 
 
@@ -500,6 +504,14 @@ def r3_device_grp() -> dict[str, str]:
     return out
 
 
+def _lot_hist_floor() -> str:
+    """KST date CURRENT_WINDOW_DAYS ago as "YYYYMMDD" — dt's own shape.
+
+    ``now-60d`` date math does not apply to a keyword field.
+    """
+    return (datetime.now(KST) - timedelta(days=CURRENT_WINDOW_DAYS)).strftime("%Y%m%d")
+
+
 @ttl_cache
 def _lot_bridge() -> tuple[dict[str, str], dict[str, list[str]]]:
     """(lot_id->lot_cd, lot_cd->[lot_id, ...]) from ebeam_tas_lot_hist.
@@ -526,7 +538,7 @@ def _lot_bridge() -> tuple[dict[str, str], dict[str, list[str]]]:
         _LOT_HIST_INDEX,
         [("lot_id", "lot_id.keyword"), ("lot_cd", "lot_cd.keyword")],
         {},
-        {"range": {_LOT_HIST_TIME_F: {"gte": f"now-{CURRENT_WINDOW_DAYS}d"}}},
+        {"range": {_LOT_HIST_WINDOW_F: {"gte": _lot_hist_floor()}}},
     )
     forward: dict[str, str] = {}
     for bucket in buckets:

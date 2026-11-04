@@ -273,7 +273,8 @@ device 카탈로그(디바이스별 화면)용 lot_cd 해결
 - meas_hist_* 에는 lot_cd 가 없습니다. 현재 생산 중인 device 목록은 아래
   두 소스를 join 해서 만듭니다.
   - Redis "device_desc" DataFrame -> lot_cd 카탈로그(메타데이터).
-  - OpenSearch "ebeam_tas_lot_hist" index 의 최근 60일(event_tm) unique
+  - OpenSearch "ebeam_tas_lot_hist" index 의 최근 60일(dt.keyword "YYYYMMDD" 하한,
+    2026-11-04 전에는 event_tm) unique
     lot_cd -> "현재 생산 중" 판단(오래된 lot_cd 제거).
   자세한 스키마는 device_desc.txt, ebeam_tas_lot_hist.txt 참고.
 - timestamp 는 offset 없는 KST 값이라 클러스터의 now 보다 최대 9시간 앞섭니다.

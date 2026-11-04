@@ -69,9 +69,9 @@ def test_all_four_statuses_appear_somewhere():
 
 @pytest.mark.parametrize("family", FAMILIES)
 def test_param_seq_is_dense_and_helpers_lead(family):
-    by_recipe: dict[str, list[dict]] = {}
+    by_recipe: dict[tuple[str, str], list[dict]] = {}
     for p in mock.get_family_params(family):
-        by_recipe.setdefault(p["recipe_id"], []).append(p)
+        by_recipe.setdefault((p["recipe_id"], p["fac_id"]), []).append(p)   # 표 B 한 벌
     helper_recipes = 0
     for params in by_recipe.values():
         assert [p["param_seq"] for p in params] == list(range(1, len(params) + 1))
@@ -85,9 +85,9 @@ def test_param_seq_is_dense_and_helpers_lead(family):
 def test_hvsem_has_mother_and_amat_has_type():
     hv = mock.get_family_params("hv-sem")
     assert any(p["mother"] for p in hv)
-    # R4 — 이름 파생이라 약 41% 만 종류가 있고, 나머지는 "" 입니다.
+    # R4·S6 — 이름 파생이라 약 47% (접두사 5.68% + 토큰 41.1%) 만 종류가 있습니다.
     typed = sum(1 for p in hv if p["param_type"]) / len(hv)
-    assert 0.33 < typed < 0.50, typed
+    assert 0.40 < typed < 0.55, typed
     assert {p["param_type"] for p in hv} <= {"", "WAFER", "LEVEL", "EDGE", "EDGE_EX"}
     for family in ("veritysem", "provision"):
         rows = mock.get_family_params(family)
@@ -229,7 +229,7 @@ def test_family_normal_rule_markers():
 def test_hv_params_carry_blank_and_duplicate_names():
     by_recipe: dict = {}
     for p in mock.get_family_params("hv-sem"):
-        by_recipe.setdefault(p["recipe_id"], []).append(p["param_name"])
+        by_recipe.setdefault((p["recipe_id"], p["fac_id"]), []).append(p["param_name"])
     rows = [n for names in by_recipe.values() for n in names]
     assert 0.02 < rows.count("") / len(rows) < 0.08
     dup = sum(1 for names in by_recipe.values() if len([n for n in names if n]) > len({n for n in names if n}))
@@ -251,3 +251,41 @@ def test_hv_image_steps_are_a_third():
     steps = mock.get_family_steps("hv-sem")
     image = sum(1 for s in steps if s["oper_desc"].split()[-1] in IMAGE_STEP_SUFFIXES)
     assert 0.28 < image / len(steps) < 0.40
+
+
+def test_r4_devices_are_the_same_two_in_every_family_and_in_r3_catalog():
+    """S8 ABC / S9 A — R7QA·R7QC 는 세 계열 index 모두에, r3_device_grp 에 있습니다."""
+    catalog = {r["lot_cd"] for r in mock.get_r3_device_grp()}
+    per_family = [
+        {s["lot_cd"] for s in mock.get_family_steps(f) if s["fac_id"] == "R4"} for f in FAMILIES
+    ]
+    assert per_family[0] == per_family[1] == per_family[2]
+    assert len(per_family[0]) == 2 and per_family[0] <= catalog
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_table_b_has_one_set_per_recipe_and_fab(family):
+    """S2 A — 표 B 는 (recipe_id, fac_id) 마다 한 벌이고, fab 은 그 recipe 를 쓰는 step 의 fab."""
+    used: dict[str, set[str]] = {}
+    for s in mock.get_family_steps(family):
+        used.setdefault(s["recipe_id"], set()).add(s["fac_id"])
+    sets: dict[str, dict[str, list[str]]] = {}
+    for p in mock.get_family_params(family):
+        sets.setdefault(p["recipe_id"], {}).setdefault(p["fac_id"], []).append(p["param_name"])
+    assert all(set(fabs) == used[recipe] for recipe, fabs in sets.items())
+    multi = [fabs for fabs in sets.values() if len(fabs) > 1]
+    assert multi, "여러 fab 에 걸린 recipe 가 없으면 fab 축이 집에서 보이지 않습니다"
+    differ = [fabs for fabs in multi if len({tuple(v) for v in fabs.values()}) > 1]
+    assert 0 < len(differ) < len(multi)
+
+
+def test_sizes_follow_office_counts():
+    """3차 회신 숫자 — planstep lots / 카탈로그 밖 / _CAP_BASE / M fab lots."""
+    catalog = {r["lot_cd"] for r in mock.get_r3_device_grp()}
+    office = {"hv-sem": (193, 33, 64), "veritysem": (216, 19, 74), "provision": (294, 47, 71)}
+    for family, (lots, off, m_lots) in office.items():
+        steps = mock.get_family_steps(family)
+        planstep = {s["lot_cd"] for s in steps if s["prod_id"]}
+        assert len(planstep) == lots and len(planstep - catalog) == off, family
+        assert len({s["lot_cd"] for s in steps if s["prod_id"].endswith("_CAP_BASE")}) == 3
+        assert abs(len({(s["fac_id"], s["lot_cd"]) for s in steps if not s["prod_id"]}) - m_lots) <= 3

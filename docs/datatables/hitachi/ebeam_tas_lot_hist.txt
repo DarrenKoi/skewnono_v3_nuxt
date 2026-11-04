@@ -7,10 +7,15 @@ recipe_tat 등 대시보드에서 "현재 생산 중인 device(lot_cd)" 목록�
 Index -> ebeam_tas_lot_hist
 
 핵심 사용 field
-  dt       -> keyword(dt.keyword): 날짜. **device-statistics 의 90일 창은 이 field 로
-              자릅니다** (office 확인 2026-11-04). 값 모양("YYYY-MM-DD" 가정)은
-              OFFICE-VERIFY 입니다.
-  event_tm -> date: 이벤트 시각. 기간(range) 필터 기준 time_field (recipe_tat 등).
+  dt       -> keyword(dt.keyword): 날짜 "YYYYMMDD" (예 "20260518", office 확인
+              2026-11-04). **기간 창은 이 field 로 자릅니다** (device-statistics 90일,
+              lot_id↔lot_cd bridge 60일 — 둘 다 office 확인 2026-11-04).
+              ★ keyword range 는 문자열 비교라 하한도 "YYYYMMDD" 여야 합니다.
+              "2026-08-06" 하한은 모든 dt 보다 작아 **에러 없이 index 전체**
+              (2,641,395건, 2022년까지)를 통과시켰고, "20260806" 은 1,434,084건
+              이었습니다. lte 쪽은 반대로 0건이 됩니다. "now-60d" 같은 date math 는
+              keyword 에 먹지 않으므로 KST 날짜를 계산해 strftime("%Y%m%d") 로 보냅니다.
+  event_tm -> date: 이벤트 시각. 창에는 쓰지 않고 "최신 문서" 정렬에만 씁니다.
               미래값이 6건 있고 dt 와 5.7% 어긋납니다 (office 확인 2026-11-04).
   lake_load_tm -> 14자리 숫자. date 로 잘못 파싱되므로 쓰지 않습니다.
               시간대는 사무실 인덱스 공통 규약(offset 없는 KST wall-clock,
@@ -55,7 +60,8 @@ oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. �
 
 조회 방법(recipe_tat office adapter 기준)
 
-1. 최근 60일(event_tm gte now-60d)에 대해 (lot_id.keyword, lot_cd.keyword)
+1. 최근 60일(dt.keyword gte "YYYYMMDD" — 2026-11-04 전에는 event_tm gte now-60d)에
+   대해 (lot_id.keyword, lot_cd.keyword)
    composite aggregation 으로 unique 쌍만 받습니다 (2026-10-14 변경).
    이전에는 range_dataframe_all 로 문서 전량을 받았는데, scroll 을
    search_after(_id 정렬)로 바꾼 뒤 전량이 실제로 들어오기 시작하자 이
@@ -135,7 +141,7 @@ M fab 경로는 다음과 같습니다.
    있고 dt 와 5.7% 어긋납니다. lake_load_tm 은 14자리 숫자라 date 로 잘못
    파싱되므로 쓰지 않습니다. CD-SEM 경로도 dt.keyword 로 바꿉니다(R6, office 확인
    2026-11-04) — office_example.py 의 LOT_HIST_WINDOW_F. keyword 라 range 가 문자열
-   비교이므로 하한을 "YYYY-MM-DD" 로 보냅니다. dt 의 실제 값 모양은 OFFICE-VERIFY 입니다.
+   비교이므로 하한을 dt 와 같은 "YYYYMMDD" 로 보냅니다(위 dt field 의 ★).
    event_tm 은 "최신 문서" 정렬과 표시에만 남습니다. recipe_tat 의 60일과
    다른 창이므로 상수를 공유하지 마십시오. 3개월을 쓰는 근거는 "그 안에는 fab 에서
    최소 한 번의 공정이 돌았을 것" 이라는 가정입니다 — 이 창을 좁히면 스텝이 통째로

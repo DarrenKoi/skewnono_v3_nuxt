@@ -77,7 +77,10 @@ Index(alias)
               - 같은 (recipe, version) 인데 파라미터가 다른 경우가 40건이고, 그중
                 33건은 fab 마다 하나로 정해집니다. 이 index 의 eqp_id 는 **배열**이고
                 94.5% 가 IP 주소라, eqp_id 로 대표 장비를 고르면 안 됩니다 (R2,
-                office 확인 2026-11-04).
+                office 확인 2026-11-04). 그래서 device-statistics 표 B 는
+                (recipe, fab) 마다 한 벌이고, fab 으로도 안 정해지는 나머지는 가장
+                최근 문서를 씁니다 (S2 A / S3 A).
+              - 접두사 5.68% 와 토큰 41.1% 는 겹치지 않아 합쳐서 약 46.8% 입니다 (S6).
               - device-statistics 표 A recipe 중 이 index 에서 찾는 비율은 40%
                 (ok 575 / not_found 868)입니다.
   wafer_para_loc_info -> object: parameter 별 측정 위치 row (wafer_mp_info 에

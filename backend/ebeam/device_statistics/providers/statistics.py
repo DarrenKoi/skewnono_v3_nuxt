@@ -207,9 +207,8 @@ def _to_recipe_row(
         "eqp_id": identity["eqp_id"],
         "recipe_id": identity["recipe_id"],
         # "Y" == skip(측정하지 않음) (user-confirmed 2026-07-31). 값 도메인은
-        # 실물과 같은 "Y"/"N"/"D" 세 가지이며, skip 비율 15% 를 유지해 측정
-        # 비율은 예전과 같은 약 85% 입니다 — 극성 표기만 바로잡은 것이라 화면
-        # 숫자는 뒤집히지 않습니다.
+        # 실물과 같은 "Y"/"N"/"D" 세 가지입니다. 비율은 -cd 실측(Y 47.7%,
+        # D 6.5% — office 확인 2026-11-04)이라 측정 비율은 약 52% 입니다.
         "skip_yn": identity["skip_yn"],
         # 실물 chg_tm 은 offset 없는 KST wall-clock datetime("2025-07-17T12:26:01")
         # 입니다. 예전에는 시각(HH:MM:SS)만 만들어 날짜가 없었습니다.

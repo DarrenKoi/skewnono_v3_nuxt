@@ -399,9 +399,11 @@ PARA_RANGES = {
     "para_over_16": (0, 0),
 }
 
-SKIPPED_RATIO = 0.15
-# -cd 의 "D" 비율. 7,458행이라는 것만 알고 전체 대비 비율은 모릅니다 — OFFICE-VERIFY.
-SKIP_D_RATIO = 0.15
+# -cd skip_yn 분포 Y 55,249 / N 53,198 / D 7,485 / 합 115,932 (N3, office 확인
+# 2026-11-04). 2026-11-04 전 mock 은 skip 15% 였습니다 — 실물은 절반 가까이가 skip
+# 이라, avail_recipe / total_recipe 가 85% 근처라고 가르치던 mock 이 틀렸습니다.
+SKIPPED_RATIO = 0.477
+SKIP_D_RATIO = 0.065
 
 # 정체성 풀 seed 를 주차 seed 와 갈라놓는 salt. 주차별 rng 와 섞이면 풀이 주차마다
 # 달라져 recipe_id 안정성이 깨집니다.
@@ -478,8 +480,8 @@ def week_scale(trajectory: str, point_index: int, points: int) -> float:
 def _skip_yn(rng: random.Random) -> str:
     """실물의 세 값("Y" / "N" / "D")을 만듭니다. 빈 값은 0건입니다 (office 확인 2026-11-04).
 
-    2026-11-04 전에는 세 번째 값을 빈 값으로 냈습니다. 같은 자리를 "D" 로 바꿨을 뿐이라
-    rng 호출 수와 화면 숫자는 그대로입니다.
+    2026-11-04 전에는 세 번째 값을 빈 값으로 냈습니다. 비율은 -cd 실측(Y 47.7% /
+    D 6.5%)입니다. rng 호출 수는 그대로라 recipe 정체성은 바뀌지 않습니다.
     """
     roll = rng.random()
     if roll < SKIPPED_RATIO:

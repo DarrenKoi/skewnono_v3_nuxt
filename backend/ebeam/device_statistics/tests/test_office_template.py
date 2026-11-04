@@ -101,7 +101,7 @@ def test_r3_steps_query_both_prod_id_suffixes(monkeypatch):
 
 
 def test_mfab_window_is_dt_keyword_date_string(monkeypatch):
-    """90일 창은 event_tm 이 아니라 dt.keyword (R6), 하한은 "YYYY-MM-DD"."""
+    """90일 창은 event_tm 이 아니라 dt.keyword (R6), 하한은 dt 와 같은 "YYYYMMDD" (S1)."""
     seen = {}
 
     def fake_aggregate(index, aggs, query):
@@ -115,4 +115,4 @@ def test_mfab_window_is_dt_keyword_date_string(monkeypatch):
     ranges = repr(seen["query"])
     assert "'dt.keyword'" in ranges and "event_tm" not in ranges
     floor = office_example._window_floor()
-    assert len(floor) == 10 and floor[4] == floor[7] == "-"
+    assert len(floor) == 8 and floor.isdigit()

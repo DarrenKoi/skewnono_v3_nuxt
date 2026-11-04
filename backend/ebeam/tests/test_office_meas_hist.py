@@ -621,7 +621,10 @@ def test_lot_bridge_reads_distinct_pairs_not_every_document(monkeypatch):
     assert reverse == {"D1": ["L1", "L2"]}
     index, _body, query_body = calls[0]
     assert index == "ebeam_tas_lot_hist"
-    assert query_body == {"range": {"event_tm": {"gte": "now-60d"}}}
+    # dt.keyword with a "YYYYMMDD" floor (office 확인 2026-11-04) — a "YYYY-MM-DD"
+    # floor sorts below every dt value and silently reads the whole index.
+    floor = query_body["range"]["dt.keyword"]["gte"]
+    assert len(floor) == 8 and floor.isdigit()
     _office_meas_hist._lot_bridge.cache_clear()
 
 

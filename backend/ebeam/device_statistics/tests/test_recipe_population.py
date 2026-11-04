@@ -343,16 +343,20 @@ def test_mother_flag_agrees_between_statistics_and_recipe_params():
 
 
 def test_bucket_hierarchy_matches_the_screen_ordering(trend):
-    """all > only_normal > mother_normal > only_sample.
+    """all > only_normal > mother_normal, 그리고 all > only_sample.
 
-    비교 페이지의 막대 서열이라 뒤집히면 화면 인상이 바뀝니다.
+    비교 페이지의 막대 서열이라 뒤집히면 화면 인상이 바뀝니다. mother_normal 과
+    only_sample 사이는 고정하지 않습니다 — -cd 실물의 skip 이 47.7% 라(office 확인
+    2026-11-04) skip 을 거르는 mother_normal 이 skip 을 거르지 않는 only_sample 보다
+    작아질 수 있고, 실물에서도 그렇습니다.
     """
     latest = list(trend)[-1]
     sizes = {
         b: len([r for r in trend[latest][f"{b}_rcp_info"] if r["lot_cd"] == "R000"])
         for b in ("all", "only_normal", "mother_normal", "only_sample")
     }
-    assert sizes["all"] > sizes["only_normal"] > sizes["mother_normal"] > sizes["only_sample"]
+    assert sizes["all"] > sizes["only_normal"] > sizes["mother_normal"] > 0
+    assert sizes["all"] > sizes["only_sample"] > 0
 
 
 # ── office 어댑터와의 규칙 일치 (드리프트 방지) ───────────────────────────

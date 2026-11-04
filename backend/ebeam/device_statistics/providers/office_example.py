@@ -118,9 +118,9 @@ OFFICE-VERIFY 목록
    가 실제로 이 field 에 실리는지. 전각 ［／］ 는 NFKC 로 받지만, 그 밖의
    변형(괄호 누락·다른 구분자)은 룰 미정(Gray)으로 보입니다.
 6. M-fab ``oper_seq``/``samp_seq`` 는 원천에 없어 접두사 rank 로 합성합니다.
-7. ``dt.keyword`` 의 값 모양 — 창 하한을 "YYYY-MM-DD" 문자열로 비교합니다
-   (:data:`LOT_HIST_WINDOW_F`). dt 가 "YYYYMMDD" 이면 문자열 비교에서 모든 문서가
-   하한보다 커져 창이 사라집니다(숫자가 커지는 쪽 — 0건이 되지는 않음).
+7. ~~``dt.keyword`` 의 값 모양~~ — 답: "YYYYMMDD" (예 "20260518", office 확인
+   2026-11-04). 하한도 같은 모양이어야 합니다. "2026-08-06" 하한은 에러 없이 index
+   전체(2,641,395건)를 통과시켰고, "20260806" 은 1,434,084건이었습니다.
 """
 
 from __future__ import annotations
@@ -220,6 +220,7 @@ OPER_DET_DESC_KW = "oper_det_desc.keyword"
 # 90일 창은 dt.keyword 로 자릅니다 (R6, office 확인 2026-11-04). event_tm 에는 미래값이
 # 6건 있고 dt 와 5.7% 어긋납니다. lake_load_tm 은 14자리 숫자라 date 로 잘못 파싱되므로
 # 쓰지 않습니다. event_tm 은 창이 아니라 "가장 최근 문서" 정렬과 chg_tm 표시에만 남습니다.
+# dt 값은 "YYYYMMDD" 입니다 — 하한 모양은 _window_floor().
 LOT_HIST_WINDOW_F = "dt.keyword"
 LOT_HIST_TIME_F = "event_tm"
 # upstream field 이름은 fab_id 입니다 — 우리 코드의 fab_name 규칙은 우리 필드
@@ -563,12 +564,14 @@ def _is_measuring(skip_yn: str) -> bool:
 
 
 def _window_floor() -> str:
-    """90일 창의 하한 — dt.keyword 와 같은 "YYYY-MM-DD" 문자열 (OFFICE-VERIFY #7).
+    """90일 창의 하한 — dt.keyword 와 같은 "YYYYMMDD" 문자열 (office 확인 2026-11-04).
 
-    keyword 의 range 는 문자열 비교라, 하한의 모양이 dt 와 같아야 합니다. KST 날짜로
-    자르므로 UTC 태그 함정(9시간)은 생기지 않습니다.
+    keyword 의 range 는 문자열 비교라, 하한의 모양이 dt 와 같아야 합니다. "YYYY-MM-DD"
+    하한은 모든 dt 보다 작아 **에러 없이 창이 사라지고**(2022년 oper_det_desc 까지
+    섞임), lte 쪽은 반대로 0건이 됩니다. KST 날짜로 자르므로 UTC 태그 함정(9시간)은
+    생기지 않습니다. ``now-90d`` date math 는 keyword 에 먹지 않습니다.
     """
-    return (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime("%Y-%m-%d")
+    return (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime("%Y%m%d")
 
 
 # ────────────────────────── 스텝 조회 ──────────────────────────

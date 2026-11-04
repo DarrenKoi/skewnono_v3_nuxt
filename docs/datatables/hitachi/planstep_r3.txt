@@ -49,8 +49,11 @@ OFFICE-VERIFY 입니다.
 OFFICE-VERIFY (계열 index)
 - ~~`-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.~~
   답: 아닙니다 — "_CAP_BASE" 가 있습니다 (아래 "계열 index 실측").
-- ~~네 index 모두 det_fac_id 가 "R3" 단일 값인지~~ — 답: 계열 index 는 아닙니다
-  (R4 device 섞임, 위 det_fac_id). -cd 는 미확인.
+- ~~네 index 모두 det_fac_id 가 "R3" 단일 값인지~~ — 답: 네 index 모두 아닙니다
+  (위 det_fac_id). -cd 의 다른 값과 device 수는 OFFICE-VERIFY.
+- index 이름: 2026-10-27 전달값은 `-verify`, 3차 회신(2026-11-04)은
+  `sknn-planstep-r3-verity` 로 적었습니다. 어느 쪽이 맞는지 OFFICE-VERIFY.
+- VeritySEM·Provision 에도 "CD_HV" 처럼 붙은 표식 꼬리가 있습니다(목록 미확인).
 - suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index. (세 계열 index 에
   AVIS/ICANS 스텝이 있는 것은 확인 — office 확인 2026-11-04.)
 
@@ -63,7 +66,10 @@ docs/office-migration/reply-device-statistics-families-261104-r2.md)이 skip "D"
 - HV-SEM only_normal 은 "CD_HV" / "CD2_HV" / "CD3_HV" 로 끝나는 53 step 을 더해야
   합니다(R1). 표식은 HV / CD_HV / CD2_HV / CD3_HV 이고, 토큰을 "_" 로 쪼개지는
   않습니다.
-- HV-SEM 의 AVIS/ICANS step 이 33.6% 입니다(2차 회신).
+- AVIS/ICANS step 은 step 행 비율로 hv 33.6% (1,112) / verity 1.6% (68) / provision
+  18.2% (1,481) 입니다(3차 회신).
+- 카탈로그 밖 device: hv 33 / verity 19 / provision 47. "_CAP_BASE" device: 계열마다 3.
+  M fab device(ebeam_tas_lot_hist 쪽): hv 64 / verity 74 / provision 71.
 
 - skip_yn 값은 "Y" / "N" / **"D"** 이고 빈 값은 0건입니다. D 는 N 과 같은
   성격이라 판정은 그대로 `!= "Y"` 입니다.
@@ -110,10 +116,11 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
 
 사용 field (user-confirmed 2026-07-30)
 
-  det_fac_id -> string: fab 대표 코드. -cd 는 "R3" 단일 값으로 압니다. **계열
-                        index 에는 R4 device 가 섞여 있습니다** — fac_id 로 R3 만
-                        고르면 R7QA / R7QC 두 device 가 사라집니다 (office 확인
-                        2026-11-04). planstep 경로인지는 fac_id 로 가리지 마십시오.
+  det_fac_id -> string: fab 대표 코드. **"R3" 단일 값이 아닙니다.** 계열 index 세
+                        곳 모두에 R4 device R7QA / R7QC 가 있고(둘 다 r3_device_grp
+                        에 있음), -cd 에도 R3 밖의 값이 있습니다(값·수 미확인) —
+                        office 확인 2026-11-04. fac_id 로 R3 만 고르면 그 device 가
+                        사라지므로, planstep 경로인지는 fac_id 로 가리지 마십시오.
                         (device_desc 계열의 fac_id 와 같은 의미이나 이름이 다릅니다.)
   prod_id -> string: 제품 ID. 예 "REXA_BASE".
                      **device code(lot_cd) + "_BASE" 형태입니다.** 접미사 "_BASE" 는
@@ -166,7 +173,10 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
                              예 "MCD018 / MCD018 / ...". 단일 문자열이므로 장비별로
                              쓰려면 분리해야 합니다.
   skip_yn -> string: "Y" | "N" | "D". **"Y" 가 skip(측정하지 않음)입니다** (아래 ★ 절).
-                     -cd 에 D 7,458행, 빈 값은 네 index 모두 0건 (office 확인 2026-11-04).
+                     -cd 분포 Y 55,249 / N 53,198 / D 7,485 / 합 115,932 — skip 이
+                     47.7% 입니다. 빈 값은 네 index 모두 0건 (office 확인 2026-11-04).
+                     (2차 회신은 D 를 7,458 로 적었고 3차 분포는 7,485 입니다.)
+                     계열 index 의 D: hv 2.51% / verity 7.24% / provision 1.42%.
   eqp_grp_id -> string: 장비 그룹 ID. 예 "G-MCD-01".
   reticle_id -> string: 레티클 ID.
   chg_tm -> string: 변경 시각. 예 "2025-07-17T12:26:01" — offset 없는 KST
