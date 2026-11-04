@@ -526,12 +526,44 @@ class FtpClient:
     ) -> None:
         """Write ``data`` to ``remote_path``, replacing it if it exists.
 
-        ``put(..., overwrite=True)`` under its own name: same temp + rename, no
-        ``TargetExists`` check. On failure only the temp is deleted, except
-        once the old target has been DELEd — then the temp is the only copy
-        and is kept (named on the exception as ``temp_path``).
+        STORs to ``<remote_path>.<random>.part``, then renames (RNFR/RNTO)
+        straight onto the target — no ``TargetExists`` check and no DELE, so
+        until RNTO succeeds the target keeps its old content intact and the
+        tool keeps working from it. Only the new edit is at stake, and the
+        caller still holds those bytes, so a failure is retryable.
+
+        - STOR fails or ``deadline`` trips: the temp is deleted (best-effort;
+          a leftover is named on the exception as ``temp_path``).
+        - RNTO cleanly refused (e.g. a server that will not rename onto an
+          existing file): the temp is deleted and the error propagates; the
+          target still holds the old content. Use ``put(overwrite=True)`` on
+          such servers. Whether RNTO replaces is OFFICE-VERIFY per server.
+        - RNTO reply lost: ``TransferUncertain`` with ``temp_path``; the temp
+          is kept, because the server may already have renamed it.
         """
-        self.put(remote_path, data, deadline=deadline, overwrite=True)
+        temp = f"{remote_path}.{secrets.token_hex(6)}.part"
+        started = time.monotonic()
+
+        def sent(block: bytes) -> None:
+            _check_deadline(started, deadline, f"STOR {temp}")
+
+        try:
+            self._ftp.storbinary(f"STOR {temp}", BytesIO(data), callback=sent)
+        except Exception as exc:
+            if isinstance(exc, TransferTimeout):
+                self._discard()  # mid-transfer: the control channel is out of step
+            self._drop_temp(temp, exc)
+            raise
+        try:
+            self._ftp.rename(temp, remote_path)
+        except (OSError, EOFError) as exc:
+            self._discard()
+            raise TransferUncertain(
+                f"rename {temp} -> {remote_path}: reply lost", temp_path=temp
+            ) from exc
+        except Exception as exc:
+            self._drop_temp(temp, exc)  # refused: the target is untouched
+            raise
 
     def _drop_temp(self, temp: str, exc: Exception) -> None:
         """Best-effort DELE of this call's own temp; on failure, name it on ``exc``."""
