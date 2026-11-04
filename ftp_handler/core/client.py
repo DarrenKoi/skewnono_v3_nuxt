@@ -521,6 +521,18 @@ class FtpClient:
                 self._drop_temp(temp, exc)
             raise
 
+    def replace(
+        self, remote_path: str, data: bytes, *, deadline: float | None = None
+    ) -> None:
+        """Write ``data`` to ``remote_path``, replacing it if it exists.
+
+        ``put(..., overwrite=True)`` under its own name: same temp + rename, no
+        ``TargetExists`` check. On failure only the temp is deleted, except
+        once the old target has been DELEd — then the temp is the only copy
+        and is kept (named on the exception as ``temp_path``).
+        """
+        self.put(remote_path, data, deadline=deadline, overwrite=True)
+
     def _drop_temp(self, temp: str, exc: Exception) -> None:
         """Best-effort DELE of this call's own temp; on failure, name it on ``exc``."""
         try:
