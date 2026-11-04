@@ -2,7 +2,7 @@
 
 For a PC that cannot reach tool FTP (firewalled) but can reach the Flask proxy
 (``flask_proxy.py``). ``home``, ``list_details``, ``download``, ``upload``,
-``put``, ``remove``, ``mkdir`` and ``rmdir`` have ``core.FtpClient``'s exact
+``put``, ``replace``, ``remove``, ``mkdir`` and ``rmdir`` have ``core.FtpClient``'s exact
 signatures and raise its exceptions, so a call site swaps the import line and
 nothing else::
 
@@ -26,6 +26,8 @@ nothing until the STOR is done, so no fixed wait fits every file size. Pass
 
 Against a proxy older than 2026-10-29 both new options fail closed. Its ``put``
 ignores ``overwrite`` and refuses an existing target with ``TargetExists``.
+``replace`` (added 2026-11-04) is an op that proxy does not know, so it is
+rejected as a bad request (``ProxyError``) and nothing is written.
 ``mkdir`` goes out as op ``makedirs``, which that proxy rejects as a bad
 request (``ProxyError``): its ``mkdir`` op ignored ``floor`` and made one
 level, so ``mkdir("/CLS/data", floor="/CLS/data")`` would have recreated the
@@ -42,8 +44,8 @@ Wire (``POST``, JSON body = credentials envelope + operation fields):
         answers ``{home, entries: []}`` after the PWD with no LIST at all.
     /fetch_sknn_v3         {remote_path, max_bytes, deadline_s}
         200 application/octet-stream, the raw file bytes
-    /write_sknn_v3         {op: upload|put|remove|makedirs|rmdir, remote_path,
-                            data_b64 (upload, put), deadline_s, overwrite (put),
+    /write_sknn_v3         {op: upload|put|replace|remove|makedirs|rmdir, remote_path,
+                            data_b64 (upload, put, replace), deadline_s, overwrite (put),
                             floor (mkdir)}
         200 {ok: true}
     Any route: 422 {code, error, temp_path?}, mapped back to an exception by
@@ -327,6 +329,12 @@ class FtpClient:
     ) -> None:
         """``core.FtpClient.put`` (temp + rename; no-clobber unless ``overwrite``)."""
         self._write("put", remote_path, data, deadline, overwrite=overwrite)
+
+    def replace(
+        self, remote_path: str, data: bytes, *, deadline: float | None = None
+    ) -> None:
+        """``core.FtpClient.replace`` (temp + RNTO onto the target, no DELE)."""
+        self._write("replace", remote_path, data, deadline)
 
     def remove(self, remote_path: str) -> None:
         """``core.FtpClient.remove`` (DELE), run on the proxy."""

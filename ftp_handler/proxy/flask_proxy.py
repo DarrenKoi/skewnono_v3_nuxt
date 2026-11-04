@@ -548,12 +548,14 @@ def _write(ftp, body: dict):
     if not isinstance(remote_path, str) or not remote_path:
         raise _BadRequest("need a remote_path")
     op = body.get("op")
-    if op in ("upload", "put"):
+    if op in ("upload", "put", "replace"):
         # validate=True: a malformed payload is a bad request, never a file
         # silently stored with the junk characters dropped.
         data = base64.b64decode(body.get("data_b64"), validate=True)
         if op == "upload":
             ftp.upload(remote_path, data)
+        elif op == "replace":
+            ftp.replace(remote_path, data, deadline=body.get("deadline_s"))
         else:
             overwrite = body.get("overwrite") is True  # only an explicit true replaces
             ftp.put(remote_path, data, deadline=body.get("deadline_s"), overwrite=overwrite)
