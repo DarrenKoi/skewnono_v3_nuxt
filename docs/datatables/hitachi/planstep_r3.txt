@@ -123,7 +123,11 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
 
 사용 field (user-confirmed 2026-07-30)
 
-  det_fac_id -> string: fab 대표 코드. **"R3" 단일 값이 아닙니다.** 계열 index 세
+  det_fac_id -> string: **그 step 을 잰 툴의 위치 = sem_list.fab_name** 입니다
+                        (office 확인 2026-11-05). fac 단위 코드가 아니라 fab_name 단위라
+                        R3 fac 안의 R4 위치 툴은 "R4" 로 나옵니다. 이 index 에는
+                        fab_name field 가 따로 없고, 합성이나 sem_list 조인 없이 이 값을
+                        그대로 fab_name 으로 씁니다. **"R3" 단일 값이 아닙니다.** 계열 index 세
                         곳 모두에 R4 device R7QA / R7QC 가 있고(둘 다 r3_device_grp
                         에 있음), -cd 에는 R4 행을 가진 device 가 98개 있습니다.
                         다만 -cd 에 **R4 전용 device 는 0개**입니다 — 98개 모두 R3

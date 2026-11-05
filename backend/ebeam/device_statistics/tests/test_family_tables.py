@@ -272,14 +272,15 @@ def test_table_b_has_one_set_per_recipe_and_fab(family):
     fac_id 는 그 recipe 를 쓰는 step 의 fac_id, fab_name 은 그 step 장비의 sem_list
     fab_name 입니다(Home 가정).
     """
-    used: dict[str, set[str]] = {}
-    for s in mock.get_family_steps(family):
-        used.setdefault(s["recipe_id"], set()).add(s["fac_id"])
     sets: dict[str, dict[tuple[str, str], list[str]]] = {}
     for p in mock.get_family_params(family):
         key = (p["fac_id"], p["fab_name"])
         sets.setdefault(p["recipe_id"], {}).setdefault(key, []).append(p["param_name"])
-    assert all({fac for fac, _ in fabs} == used[recipe] for recipe, fabs in sets.items())
+    # planstep step 의 det_fac_id 는 툴 위치 fab_name 이라 표 B 의 fab_name 과 그대로
+    # 맞습니다 (office 확인 2026-11-05) — sem_list 조인 없이 잇습니다.
+    for s in mock.get_family_steps(family):
+        if s["prod_id"] and s["recipe_id"] in sets:
+            assert s["fac_id"] in {fab for _, fab in sets[s["recipe_id"]]}, s
     multi = [fabs for fabs in sets.values() if len(fabs) > 1]
     assert multi, "여러 fab 에 걸린 recipe 가 없으면 fab 축이 집에서 보이지 않습니다"
     # 한 fac_id 안에서 fab_name 으로 갈리는 recipe — fac_id 로만 묶으면 뭉칩니다 (U4).
@@ -337,3 +338,17 @@ def test_r4_devices_fab_differs_between_table_a_and_d():
         seen += len(activity)
         assert not any(a["fac_id"] == "R4" for a in mock.get_family_activity(family))
     assert seen, "어긋난 device 가 표 D 에 하나도 없으면 집에서 이 함정이 안 보입니다"
+
+
+def test_planstep_det_fac_id_is_the_tool_location():
+    """det_fac_id = 그 step 툴의 sem_list fab_name (office 확인 2026-11-05).
+
+    provision 은 sem_list mock 에 R4 툴이 없어 R4 lot 만 예외입니다(mock 공백).
+    """
+    from backend.ebeam.device_statistics.providers.family_tables import _eqp_fab_names
+
+    fab_name_of = _eqp_fab_names()
+    for family in FAMILIES:
+        for s in mock.get_family_steps(family):
+            if s["prod_id"] and not (family == "provision" and s["fac_id"] == "R4"):
+                assert fab_name_of[s["eqp_id"]] == s["fac_id"], (family, s)

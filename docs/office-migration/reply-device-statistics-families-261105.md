@@ -91,6 +91,9 @@ M fab 장비는 어떤 planstep 계열 index에도 없음. 그래서 표 A <-> �
 
 ## 5. 남은 확인
 
+첫 항목은 같은 날 6차 회신으로 답을 받았고 `reply-device-statistics-families-261105-r2.md`에
+기록했습니다(planstep `det_fac_id`가 곧 툴 위치 fab_name).
+
 - 표 A → 표 B를 이을 때 fab_name을 어디서 얻는지입니다. 표 A에는 fab_name이 없어 Home mock은
   step 장비의 sem_list fab_name을 씁니다. M fab step은 `ebeam_tas_lot_hist`의 fab_name을 쓸
   수 있지만, R3 planstep step의 fab_name은 정해지지 않았습니다.

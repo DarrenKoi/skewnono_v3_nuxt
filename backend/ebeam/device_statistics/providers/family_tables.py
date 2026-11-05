@@ -78,7 +78,9 @@
 
 - 표 B 한 벌은 (recipe_id, fac_id, **fab_name**) 입니다(U4). mock 은 step 장비의
   sem_list fab_name 을 붙여, 한 fac_id 안에서 fab_name 으로 갈리는 recipe 를 냅니다.
-  표 A → B 를 이을 때 fab_name 을 어디서 얻는지는 Home 가정입니다(OFFICE-VERIFY).
+  표 A → B: planstep step 의 det_fac_id 가 곧 툴 위치 fab_name 이라 그대로 씁니다
+  (6차, office 확인 2026-11-05 — planstep 에는 fab_name field 가 없고 합성도 sem_list
+  조인도 필요 없습니다). M fab step 은 ebeam_tas_lot_hist 의 fab_name 입니다.
 - 여러 fab 에 걸친 recipe 중 fab 마다 다른 것 7.3% (W3) — FAB_DIFF_RATIO.
 - 계열 skip "Y" 는 72~94% (W1), M fab step 은 device 당 1 부터 긴 꼬리(W2).
 
@@ -313,6 +315,17 @@ def _eqp_fab_names() -> dict[str, str]:
     return names
 
 
+@lru_cache(maxsize=1)
+def _fab_name_facs() -> dict[str, str]:
+    """sem_list fab_name -> fac_id (R4 -> R3, M16A -> M16)."""
+    from backend.sem_list.providers import mock as sem_list_mock
+
+    facs: dict[str, str] = {}
+    for row in sem_list_mock.get_sem_list():
+        facs.setdefault(row["fab_name"], row["fac_id"])
+    return facs
+
+
 def _tools_by_fab(tool_type: FamilyToolType) -> dict[str, list[str]]:
     from backend.sem_list.providers import mock as sem_list_mock
 
@@ -387,13 +400,21 @@ def _recipe_tables(
     tool_type: FamilyToolType, spec: _Spec, steps: list[FamilyStepRow], base_time,
 ) -> tuple[list[FamilyParamRow], list[FamilyRecipeStatusRow]]:
     first_eqp: dict[str, str] = {}
-    # 표 B 한 벌의 fab 은 (fac_id, fab_name) 입니다 (U4). step 에는 fab_name 이 없어
-    # 그 step 장비의 sem_list fab_name 으로 붙입니다 — Home 가정(OFFICE-VERIFY).
+    # 표 B 한 벌의 fab 은 (fac_id, fab_name) 입니다 (U4).
+    # - planstep step: det_fac_id 가 곧 툴 위치 fab_name 입니다 — 합성·sem_list 조인
+    #   없이 그대로 씁니다 (office 확인 2026-11-05). 그 fab_name 의 fac_id 만 sem_list
+    #   에서 찾습니다(R4 → R3; idp fac_id 도 그렇다는 것은 OFFICE-VERIFY).
+    # - M fab step: 원천(ebeam_tas_lot_hist)에 fab_name 이 있습니다. mock 은 그 대역으로
+    #   step 장비의 sem_list fab_name 을 씁니다.
     fab_name_of = _eqp_fab_names()
+    fac_of = _fab_name_facs()
     fabs: dict[str, list[tuple[str, str]]] = {}
     for step in steps:
         first_eqp.setdefault(step["recipe_id"], step["eqp_id"])
-        fab = (step["fac_id"], fab_name_of.get(step["eqp_id"], step["fac_id"]))
+        if step["prod_id"]:
+            fab = (fac_of.get(step["fac_id"], step["fac_id"]), step["fac_id"])
+        else:
+            fab = (step["fac_id"], fab_name_of.get(step["eqp_id"], step["fac_id"]))
         if fab not in fabs.setdefault(step["recipe_id"], []):
             fabs[step["recipe_id"]].append(fab)
 
@@ -509,6 +530,7 @@ def _tables(tool_type: FamilyToolType):
     for row in mock.get_device_desc():
         catalog.setdefault(row["fac_id"], []).append(row["lot_cd"])
 
+    fab_name_of = _eqp_fab_names()
     steps: list[FamilyStepRow] = []
     lots_by_fab: dict[str, list[str]] = {}
     for fac_id in sorted(tools):
@@ -531,9 +553,13 @@ def _tables(tool_type: FamilyToolType):
             if fac_id == "R3":
                 prod_id = lot_cd + ("_CAP_BASE" if lot_cd in cap_lots else "_BASE")
                 assert lot_cd_from_prod_id(prod_id) == lot_cd
+                # det_fac_id = 그 step 툴의 위치 fab_name (office 확인 2026-11-05). R4 lot
+                # 은 R4 에 있는 툴로, 나머지는 R3 에 있는 툴로 잽니다. provision 은 sem_list
+                # mock 에 R4 툴이 없어 R3 툴을 쓰되 det_fac_id 는 "R4" 로 둡니다(mock 공백).
                 det_fac_id = "R4" if lot_cd in r4_lots else "R3"
+                eqps = [e for e in tools[fac_id] if fab_name_of.get(e) == det_fac_id] or tools[fac_id]
                 steps += _r3_steps(rng, tool_type, spec, det_fac_id, lot_cd, prod_id,
-                                   rng.randint(*spec["r3_steps"]), tools[fac_id], mock.BASE_TIME)
+                                   rng.randint(*spec["r3_steps"]), eqps, mock.BASE_TIME)
             else:
                 steps += _m_steps(rng, tool_type, spec, fac_id, lot_cd,
                                   _m_step_count(rng, spec), tools[fac_id])

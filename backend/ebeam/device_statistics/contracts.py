@@ -262,6 +262,9 @@ class FamilyStepRow(TypedDict):
     office 확인 2026-11-04). recipe_id 는 정체성이 아닙니다."""
 
     tool_type: FamilyToolType
+    # planstep 행은 det_fac_id = **툴 위치 fab_name** ("R3" / "R4") 그대로입니다 —
+    # 표 B 의 fab_name 과 바로 잇습니다 (office 확인 2026-11-05). M fab 행은
+    # ebeam_tas_lot_hist 의 fab_id(fac 단위, "M16")입니다. 두 경로의 단위가 다릅니다.
     fac_id: str
     prod_id: str           # R3 원천 값("REXA_BASE" / "RH0V_CAP_BASE"). M fab 은 ""
     lot_cd: str            # family_rules.lot_cd_from_prod_id(prod_id) — 카탈로그 키
@@ -314,9 +317,10 @@ class FamilyRecipeStatusRow(TypedDict):
 class FamilyActivityRow(TypedDict):
     """표 D — 한 계열·한 fab·한 device 의 최근 측정 건수.
 
-    fac_id 는 ebeam_tas_lot_hist 의 fab_id 라 표 A 의 det_fac_id 와 다를 수 있습니다 —
-    R4 device R7QA / R7QC 는 표 A 에서 "R4", 여기서는 "R3" 입니다 (office 확인
-    2026-11-04). 표 A 와는 (tool_type, lot_cd) 로 잇고 fac_id 를 조인 키에 넣지 않습니다."""
+    fac_id 는 ebeam_tas_lot_hist 의 fab_id(fac 단위)라 표 A 의 det_fac_id(툴 위치
+    fab_name 단위)와 단위가 다릅니다 — R4 device R7QA / R7QC 는 표 A 에서 "R4", 여기서는
+    "R3" 입니다 (office 확인 2026-11-04~05). 표 A 와는 (tool_type, lot_cd) 로 잇고 fac_id
+    를 조인 키에 넣지 않습니다."""
 
     tool_type: FamilyToolType
     fac_id: str
