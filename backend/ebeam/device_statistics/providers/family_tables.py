@@ -53,7 +53,7 @@
 - AVIS/ICANS 는 step 행 비율로 hv 33.6% / verity 1.6% / provision 18.2% 입니다(S11).
 - 같은 (recipe, version) 인데 파라미터가 다른 경우가 40건이고, 그중 33건은 fab
   마다 하나로 정해집니다(R2). idp 의 eqp_id 는 배열이고 94.5% 가 IP 주소라 eqp_id
-  로 대표를 고를 수 없습니다. 표 B 는 (recipe_id, fac_id) 마다 한 벌이고(S2 A),
+  로 대표를 고를 수 없습니다. 표 B 는 (recipe_id, fab_name) 마다 한 벌이고(S2 A, U4),
   fab 으로도 안 정해지는 나머지는 가장 최근 문서를 씁니다(S3 A). mock 은 M fab
   step 15% 가 R3 recipe 를 쓰게 해 여러 fab 에 걸린 recipe 를 만들고, 그 절반에서
   뒤 fab 의 마지막 파라미터를 뺍니다(두 비율 모두 지어낸 값).
@@ -76,11 +76,13 @@
 
 5차 회신 (office 확인 2026-11-05 — reply-device-statistics-families-261105.md)
 
-- 표 B 한 벌은 (recipe_id, fac_id, **fab_name**) 입니다(U4). mock 은 step 장비의
-  sem_list fab_name 을 붙여, 한 fac_id 안에서 fab_name 으로 갈리는 recipe 를 냅니다.
+- 표 A·B 의 fab 은 **fab_name** 하나입니다(U4). fac 단위 fac_id 는 쓰지 않습니다 —
+  fab_name 이 더 세분이라 fac_id 를 더해도 갈리는 것이 없습니다(user-confirmed
+  2026-11-05: 우리는 datatables 의 fab_name / det_fac_id 를 씁니다).
   표 A → B: planstep step 의 det_fac_id 가 곧 툴 위치 fab_name 이라 그대로 씁니다
   (6차, office 확인 2026-11-05 — planstep 에는 fab_name field 가 없고 합성도 sem_list
-  조인도 필요 없습니다). M fab step 은 ebeam_tas_lot_hist 의 fab_name 입니다.
+  조인도 필요 없습니다). M fab step 은 ebeam_tas_lot_hist 의 fab_name 이고, mock 은
+  그 대역으로 step 장비의 sem_list fab_name 을 씁니다.
 - 여러 fab 에 걸친 recipe 중 fab 마다 다른 것 7.3% (W3) — FAB_DIFF_RATIO.
 - 계열 skip "Y" 는 72~94% (W1), M fab step 은 device 당 1 부터 긴 꼬리(W2).
 
@@ -315,17 +317,6 @@ def _eqp_fab_names() -> dict[str, str]:
     return names
 
 
-@lru_cache(maxsize=1)
-def _fab_name_facs() -> dict[str, str]:
-    """sem_list fab_name -> fac_id (R4 -> R3, M16A -> M16)."""
-    from backend.sem_list.providers import mock as sem_list_mock
-
-    facs: dict[str, str] = {}
-    for row in sem_list_mock.get_sem_list():
-        facs.setdefault(row["fab_name"], row["fac_id"])
-    return facs
-
-
 def _tools_by_fab(tool_type: FamilyToolType) -> dict[str, list[str]]:
     from backend.sem_list.providers import mock as sem_list_mock
 
@@ -344,7 +335,7 @@ def _pick_recipe(rng, spec, rows, lot_cd, idx) -> str:
     return _recipe_name(rng, spec, lot_cd, idx)
 
 
-def _r3_steps(rng, tool_type, spec, fac_id, lot_cd, prod_id, n, eqps, base_time) -> list[FamilyStepRow]:
+def _r3_steps(rng, tool_type, spec, det_fac_id, lot_cd, prod_id, n, eqps, base_time) -> list[FamilyStepRow]:
     rows: list[FamilyStepRow] = []
     oper_seq, samp_seq = 0, 1
     for idx in range(n):
@@ -359,7 +350,7 @@ def _r3_steps(rng, tool_type, spec, fac_id, lot_cd, prod_id, n, eqps, base_time)
         while dup and oper_desc == rows[-1]["oper_desc"]:
             oper_desc = _step_name(rng, spec)
         rows.append({
-            "tool_type": tool_type, "fac_id": fac_id, "prod_id": prod_id, "lot_cd": lot_cd,
+            "tool_type": tool_type, "fab_name": det_fac_id, "prod_id": prod_id, "lot_cd": lot_cd,
             "oper_id": f"{rng.choice(_OPER_PREFIXES)}-{rng.randint(100, 999)}",
             "oper_desc": oper_desc, "oper_seq": oper_seq, "samp_seq": samp_seq,
             "recipe_id": _pick_recipe(rng, spec, rows, lot_cd, idx), "eqp_id": rng.choice(eqps),
@@ -387,12 +378,14 @@ def _m_steps(rng, tool_type, spec, fac_id, lot_cd, n, eqps) -> list[FamilyStepRo
             continue
         seen.add(oper_desc)
         rows.append({
-            "tool_type": tool_type, "fac_id": fac_id, "prod_id": "", "lot_cd": lot_cd,
+            "tool_type": tool_type, "prod_id": "", "lot_cd": lot_cd,
             "oper_id": f"{rng.choice(_OPER_PREFIXES)}-{rng.randint(100, 999)}",
             "oper_desc": oper_desc, "oper_seq": None, "samp_seq": None,
             "recipe_id": _pick_recipe(rng, spec, rows, lot_cd, idx), "eqp_id": rng.choice(eqps),
             "skip_yn": "", "chg_tm": "",
         })
+        # ebeam_tas_lot_hist 의 fab_name 대역 — 그 step 장비의 sem_list fab_name.
+        rows[-1]["fab_name"] = _eqp_fab_names()[rows[-1]["eqp_id"]]
     return rows
 
 
@@ -400,23 +393,12 @@ def _recipe_tables(
     tool_type: FamilyToolType, spec: _Spec, steps: list[FamilyStepRow], base_time,
 ) -> tuple[list[FamilyParamRow], list[FamilyRecipeStatusRow]]:
     first_eqp: dict[str, str] = {}
-    # 표 B 한 벌의 fab 은 (fac_id, fab_name) 입니다 (U4).
-    # - planstep step: det_fac_id 가 곧 툴 위치 fab_name 입니다 — 합성·sem_list 조인
-    #   없이 그대로 씁니다 (office 확인 2026-11-05). 그 fab_name 의 fac_id 만 sem_list
-    #   에서 찾습니다(R4 → R3; idp fac_id 도 그렇다는 것은 OFFICE-VERIFY).
-    # - M fab step: 원천(ebeam_tas_lot_hist)에 fab_name 이 있습니다. mock 은 그 대역으로
-    #   step 장비의 sem_list fab_name 을 씁니다.
-    fab_name_of = _eqp_fab_names()
-    fac_of = _fab_name_facs()
-    fabs: dict[str, list[tuple[str, str]]] = {}
+    # 표 B 한 벌은 fab_name 마다입니다 (U4). 표 A 의 fab_name 을 그대로 씁니다.
+    fabs: dict[str, list[str]] = {}
     for step in steps:
         first_eqp.setdefault(step["recipe_id"], step["eqp_id"])
-        if step["prod_id"]:
-            fab = (fac_of.get(step["fac_id"], step["fac_id"]), step["fac_id"])
-        else:
-            fab = (step["fac_id"], fab_name_of.get(step["eqp_id"], step["fac_id"]))
-        if fab not in fabs.setdefault(step["recipe_id"], []):
-            fabs[step["recipe_id"]].append(fab)
+        if step["fab_name"] not in fabs.setdefault(step["recipe_id"], []):
+            fabs[step["recipe_id"]].append(step["fab_name"])
 
     params: list[FamilyParamRow] = []
     statuses: list[FamilyRecipeStatusRow] = []
@@ -448,22 +430,22 @@ def _recipe_tables(
             _assign_regions(built, True, prng)
         if tool_type == "hv-sem":
             _hv_raw_names(built, prng)
-        # 표 B 는 (tool_type, recipe_id, fac_id, fab_name) 마다 한 벌입니다 (S2 A, U4).
+        # 표 B 는 (tool_type, recipe_id, fab_name) 마다 한 벌입니다 (S2 A, U4).
         # 대부분 fab 이 달라도 같은 벌이고, 일부 recipe 만 뒤 fab 에서 마지막 파라미터가
         # 빠집니다(R2 / W3).
         diff = len(fabs[recipe_id]) > 1 and prng.random() < FAB_DIFF_RATIO
-        for nth, (fac_id, fab_name) in enumerate(sorted(fabs[recipe_id])):
+        for nth, fab_name in enumerate(sorted(fabs[recipe_id])):
             rows = built[:-1] if diff and nth and len(built) > 1 else built
-            params += _param_rows(tool_type, spec, recipe_id, fac_id, fab_name, rows)
+            params += _param_rows(tool_type, spec, recipe_id, fab_name, rows)
     return params, statuses
 
 
-def _param_rows(tool_type, spec, recipe_id, fac_id, fab_name, built) -> list[FamilyParamRow]:
+def _param_rows(tool_type, spec, recipe_id, fab_name, built) -> list[FamilyParamRow]:
     out: list[FamilyParamRow] = []
     for seq, param in enumerate(built, start=1):
         out.append({
-            "tool_type": tool_type, "recipe_id": recipe_id, "fac_id": fac_id,
-            "fab_name": fab_name, "param_seq": seq,
+            "tool_type": tool_type, "recipe_id": recipe_id, "fab_name": fab_name,
+            "param_seq": seq,
             "param_name": param["name"],
             "param_type": (
                 hv_param_type(param["name"]) if tool_type == "hv-sem"

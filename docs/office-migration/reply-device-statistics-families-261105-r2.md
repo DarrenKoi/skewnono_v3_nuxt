@@ -49,6 +49,12 @@ planstep index에는 fab_name 필드가 없습니다.
 
 ## 5. 남은 확인
 
-- 표 B의 `fac_id`가 R4 위치 툴에서 `R3`인지(Home mock 가정)입니다.
+후속 결정(user-confirmed 2026-11-05): 우리는 datatables의 `fab_name` / `det_fac_id`를 쓰고
+fac 단위 `fac_id`는 대부분 쓰지 않습니다. 그래서 계열 표 A·B의 fab은 `fab_name` 하나로
+바꿨습니다. 표 A의 field 이름을 `fac_id`에서 `fab_name`으로 바꾸고(planstep 행은 `det_fac_id`
+값), 표 B에서는 `fac_id`를 뺐습니다. 아래 첫 항목이었던 "표 B의 `fac_id`가 R4 위치 툴에서
+`R3`인지"는 물을 필요가 없어졌습니다. 표 D는 `ebeam_tas_lot_hist`의 fac 단위 fab_id로
+계산되어 `fac_id`를 그대로 둡니다.
+
 - fab_name까지 넣어도 남는 8 그룹의 동률 처리입니다.
 - R9~R12는 AMAT 측정 결과 파서가 나온 뒤에 받습니다.

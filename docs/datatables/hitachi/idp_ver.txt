@@ -70,7 +70,8 @@ Index(alias)
                 1,449 중 575 가 정확히 맞습니다(U1). VeritySEM·Provision recipe 는 이
                 index 에 하나도 없습니다 — AMAT 원천을 따로 만들어야 합니다.
               - fac_id 는 문자열 하나입니다(U2). eqp_id 처럼 배열이 아닙니다.
-              - ★ 표 B 한 벌은 (full_name, fac_id, **fab_name**) 입니다. (full_name,
+              - ★ 표 B 한 벌은 (full_name, **fab_name**) 입니다 — fab_name 이 fac_id 보다
+                세분이라 fac_id 는 키에 두지 않습니다(2026-11-05). (full_name,
                 fac_id, modified) 로 묶으면 5,614 그룹 / 11,228 문서가 겹치고, 원인은
                 fab_name 누락입니다. 적재 쪽 doc_id 키(fab_name|full_name|version|
                 modified, 위)로 넓히면 8 그룹만 남습니다(U4). 그 8 그룹의 동률 처리는
@@ -96,8 +97,8 @@ Index(alias)
                 94.5% 가 IP 주소라, eqp_id 로 대표 장비를 고르면 안 됩니다 (R2,
                 office 확인 2026-11-04). 그래서 device-statistics 표 B 는
                 (recipe, fab) 마다 한 벌이고, fab 으로도 안 정해지는 나머지는 가장
-                최근 문서를 씁니다 (S2 A / S3 A). fab 은 이 index 의 ``fac_id``
-                field (T3), "최근" 은 ``version`` 이 아니라 ``modified`` 기준입니다
+                최근 문서를 씁니다 (S2 A / S3 A). fab 은 이 index 의 ``fab_name``
+                field 입니다(T3 이 답한 ``fac_id`` 는 fac 단위라 쓰지 않습니다). "최근" 은 ``version`` 이 아니라 ``modified`` 기준입니다
                 (T4 B — office 확인 2026-11-04).
               - 접두사 5.68% 와 토큰 41.1% 는 겹치지 않아 합쳐서 약 46.8% 입니다 (S6).
               - device-statistics 표 A recipe 중 이 index 에서 찾는 비율은 40%

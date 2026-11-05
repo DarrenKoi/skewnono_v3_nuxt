@@ -262,10 +262,10 @@ class FamilyStepRow(TypedDict):
     office 확인 2026-11-04). recipe_id 는 정체성이 아닙니다."""
 
     tool_type: FamilyToolType
-    # planstep 행은 det_fac_id = **툴 위치 fab_name** ("R3" / "R4") 그대로입니다 —
-    # 표 B 의 fab_name 과 바로 잇습니다 (office 확인 2026-11-05). M fab 행은
-    # ebeam_tas_lot_hist 의 fab_id(fac 단위, "M16")입니다. 두 경로의 단위가 다릅니다.
-    fac_id: str
+    # 툴 위치 fab_name 입니다 ("R3" / "R4" / "M16A"). planstep 행은 det_fac_id 값
+    # 그대로(그 값이 곧 fab_name — office 확인 2026-11-05), M fab 행은 ebeam_tas_lot_hist
+    # 의 fab_name 입니다. fac 단위 코드(fac_id)는 쓰지 않습니다. 표 B 와 이 값으로 잇습니다.
+    fab_name: str
     prod_id: str           # R3 원천 값("REXA_BASE" / "RH0V_CAP_BASE"). M fab 은 ""
     lot_cd: str            # family_rules.lot_cd_from_prod_id(prod_id) — 카탈로그 키
     oper_id: str
@@ -281,19 +281,19 @@ class FamilyStepRow(TypedDict):
 class FamilyParamRow(TypedDict):
     """표 B — 한 recipe·한 fab 의 한 파라미터. param_seq 가 측정 순서입니다.
 
-    정체성은 (tool_type, recipe_id, fac_id, fab_name, param_seq) 입니다. fac_id 만으로
-    묶으면 같은 (full_name, fac_id, modified) 문서가 5,614 그룹(11,228 문서) 생기고,
-    fab_name 까지 넣으면 8 그룹만 남습니다 (U4, office 확인 2026-11-05). 같은 (recipe, version)
+    정체성은 (tool_type, recipe_id, fab_name, param_seq) 입니다. idp 의 fac_id 로 묶으면
+    같은 (full_name, fac_id, modified) 문서가 5,614 그룹(11,228 문서) 생기고, fab_name
+    으로 묶으면 8 그룹만 남습니다 (U4, office 확인 2026-11-05). fab_name 이 fac_id 보다
+    세분이라 fac_id 는 계약에 두지 않습니다. 표 A 의 fab_name 과 그대로 잇습니다. 같은 (recipe, version)
     인데 파라미터가 다른 경우가 40건이고 그중 33건이 fab 마다 하나로 정해져, fab 축을
     둡니다 (S2 A, office 확인 2026-11-04). fab 으로도 정해지지 않는 나머지는 가장
     최근 문서를 씁니다 (S3 A) — "최근" 은 ``version`` 이 아니라 ``modified`` 기준입니다
-    (T4, office 확인 2026-11-04). fab 은 idp 문서의 ``fac_id`` field 입니다 (T3). idp 의 eqp_id 는 배열이고 94.5% 가 IP 주소라 장비로
+    (T4, office 확인 2026-11-04). fab 은 idp 문서의 ``fab_name`` field 입니다. idp 의 eqp_id 는 배열이고 94.5% 가 IP 주소라 장비로
     대표를 고르지 않습니다. 빈 param_name 은 빼지 않습니다 (R3 A)."""
 
     tool_type: FamilyToolType
     recipe_id: str
-    fac_id: str            # idp 문서의 fac_id (문자열 하나, U2)
-    fab_name: str          # idp 문서의 fab_name (M16A 처럼 fac_id 보다 세분)
+    fab_name: str          # idp 문서의 fab_name ("M16A" / "R4")
     param_seq: int
     param_name: str
     param_type: str        # "" = 원천에 종류가 없음 (Q4)
