@@ -74,7 +74,7 @@ def is_family_sample_recipe(recipe_id: str) -> bool:
 # 5.68% 만 덮고, 이름 **안의** 토큰을 EX > ED/EDGE > WF > LV 순서로 보면 41.1% 를
 # 덮습니다. 순서가 핵심입니다 — "EDGE_EX" 는 EDGE 토큰도 가지므로 EX 를 먼저 봅니다.
 # 나머지 약 59% 는 "" (종류 모름)로 남습니다.
-# 토큰 → 종류 이름 대응(EX → EDGE_EX 등)은 Home 해석입니다 — OFFICE-VERIFY.
+# 토큰 → 종류 이름 대응(EX → EDGE_EX 등)은 사무실이 맞다고 했습니다 (S5, 2026-11-04).
 _HV_TYPE_TOKENS: tuple[tuple[str, frozenset[str]], ...] = (
     ("EDGE_EX", frozenset({"EX"})),
     ("EDGE", frozenset({"ED", "EDGE"})),

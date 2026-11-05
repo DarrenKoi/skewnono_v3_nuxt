@@ -81,6 +81,8 @@ R7QA/R7QC의 fab이 두 index에서 어긋납니다. 표 A det_fac_id는 R4, 표
 
 ## 5. 남은 확인
 
+5차 질문지로 보냈고, 회신은 `reply-device-statistics-families-261105.md`에 기록했습니다.
+
 - R9~R12는 AMAT 측정 결과 파서가 나온 뒤에 받습니다.
 - 계열 화면과 office 어댑터를 만들 때 표 B~D를 원천에서 계산합니다. 그때 V4 화면 기준
   숫자와 맞춰 봅니다.

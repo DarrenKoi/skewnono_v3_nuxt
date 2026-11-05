@@ -54,6 +54,13 @@ OFFICE-VERIFY (계열 index)
 - ~~index 이름 `-verify` / `-verity`~~ — 답: `sknn-planstep-r3-verity` 입니다(T1,
   office 확인 2026-11-04). 2026-10-27 기록의 `-verify` 는 오기였습니다.
 - 붙은 표식 꼬리: Provision 에 "CD2_PROV" 12 step, VeritySEM 에는 없음(V1).
+- 계열 index 의 skip_yn "Y": hv 86.98% / verity 71.52% / provision 93.56% (W1, office
+  확인 2026-11-05). -cd 의 47.7% 보다 훨씬 큽니다.
+- M fab(ebeam_tas_lot_hist) 쪽 계열 step 수: hv 851 / verity 2,168 / provision 1,150,
+  device 당 1~71 / 1~107 / 1~134 (W2). M fab 장비는 어느 planstep 계열 index 에도
+  없어, 표 A ↔ 표 D 는 장비가 아니라 lot_cd 로만 이어집니다(4차 결정 재확인).
+- R3 all total_recipe 는 device 행 단위입니다 — 행 합 17,974 / distinct 14,123
+  (U6, 2026-11-05). 4차 회신 "화면 기준 18,794" 도 device 별 합이었습니다.
 - suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index. (세 계열 index 에
   AVIS/ICANS 스텝이 있는 것은 확인 — office 확인 2026-11-04.)
 

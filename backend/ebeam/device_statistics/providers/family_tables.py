@@ -30,6 +30,8 @@
   868, empty·failed 0), param_seq 는 raw_data 행 순서, 빈 Parameter 4.9%,
   이름이 겹치는 문서 52.7%. mother 있음·포인트 수 고정·Dummy/Align 맨 앞(Q5, Q6,
   Q15 의 HV 칸 A). param_type 은 원천에 없어 이름에서 파생합니다(Q4 HV = B, 아래 R4).
+- VeritySEM·Provision recipe 는 hvsem_idp_ver 에 하나도 없고(U1), AMAT 측정 결과
+  파서도 아직 없습니다(U7 A).
 - VeritySEM·Provision 은 측정 결과 파싱 전이라 사무실 표 C 가 **전부 not_found**
   입니다. mock 의 ok 비율은 화면 경로를 돌리려는 가정값입니다.
 - 시각(chg_tm / source_tm / as_of)은 offset 없는 KST wall-clock 입니다.
@@ -69,7 +71,16 @@
   _CAP_BASE device 계열마다 3, skip D 2.51% / 7.24% / 1.42%, "_DENSE" recipe
   0 / 2 / 0. :data:`FAMILY_SPECS` 가 이 숫자를 따릅니다.
 - 표 B·C·D 는 저장된 곳이 없습니다. 사무실 추출이 매번 계산합니다(B = hvsem_idp_ver
-  조회, C = 계산, D = ebeam_tas_lot_hist dt.keyword 90일 창).
+  조회, C = 계산, D = ebeam_tas_lot_hist dt.keyword 90일 창). Home office 어댑터가
+  원천에서 계산합니다(T5 A).
+
+5차 회신 (office 확인 2026-11-05 — reply-device-statistics-families-261105.md)
+
+- 표 B 한 벌은 (recipe_id, fac_id, **fab_name**) 입니다(U4). mock 은 step 장비의
+  sem_list fab_name 을 붙여, 한 fac_id 안에서 fab_name 으로 갈리는 recipe 를 냅니다.
+  표 A → B 를 이을 때 fab_name 을 어디서 얻는지는 Home 가정입니다(OFFICE-VERIFY).
+- 여러 fab 에 걸친 recipe 중 fab 마다 다른 것 7.3% (W3) — FAB_DIFF_RATIO.
+- 계열 skip "Y" 는 72~94% (W1), M fab step 은 device 당 1 부터 긴 꼬리(W2).
 
 일부러 남긴 성질
 
@@ -144,7 +155,8 @@ class _Spec(TypedDict):
     r3_steps: tuple[int, int]        # 평균이 표 A steps / lots 가 되게 (office)
     off_catalog: int                 # r3_lots 중 카탈로그에 없는 device (office)
     m_lots: int                      # M fab device 합 — 5 fab 에 나눕니다 (office)
-    m_steps: tuple[int, int]         # OFFICE-VERIFY
+    m_steps: tuple[float, int]       # device 당 (평균, 최대) M fab step — 최소 1 (W2, office)
+    skip_y_ratio: float              # skip_yn "Y" / 표 A steps (W1, office)
     skip_d_ratio: float              # skip_yn "D" / 표 A steps (office)
     dense_per_mille: int             # "_DENSE" recipe 비율 ‰ (office 수에 맞춤)
     shared_recipe_ratio: float       # 표 A recipes / steps ≈ 0.44~0.49 (office)
@@ -169,7 +181,7 @@ class _Spec(TypedDict):
 FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
     "hv-sem": {
         "seed": 20261102, "r3_lots": 193, "r3_steps": (10, 24), "off_catalog": 33,
-        "m_lots": 64, "m_steps": (4, 12), "skip_d_ratio": 0.0251, "dense_per_mille": 0,
+        "m_lots": 64, "m_steps": (13.3, 71), "skip_y_ratio": 0.8698, "skip_d_ratio": 0.0251, "dense_per_mille": 0,
         "shared_recipe_ratio": 0.60, "dup_identity_ratio": 0.001, "active_ratio": 0.38,
         # CD_HV 계열 53 / 3,310 step (R1, office 확인 2026-11-04).
         "markers": ("HV", "CD_HV", "CD2_HV", "CD3_HV"),
@@ -182,7 +194,7 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
     },
     "veritysem": {
         "seed": 20261103, "r3_lots": 216, "r3_steps": (12, 27), "off_catalog": 19,
-        "m_lots": 74, "m_steps": (3, 8), "skip_d_ratio": 0.0724, "dense_per_mille": 1,
+        "m_lots": 74, "m_steps": (29.3, 107), "skip_y_ratio": 0.7152, "skip_d_ratio": 0.0724, "dense_per_mille": 1,
         "shared_recipe_ratio": 0.56, "dup_identity_ratio": 0.007, "active_ratio": 0.45,
         "markers": ("CD", "VERITY", "VRT"), "marker_weights": (1, 1, 1),
         "image_step_ratio": 0.016,   # 68 / 4,250 (office 확인 2026-11-04)
@@ -193,7 +205,7 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
     },
     "provision": {
         "seed": 20261104, "r3_lots": 294, "r3_steps": (18, 38), "off_catalog": 47,
-        "m_lots": 71, "m_steps": (4, 12), "skip_d_ratio": 0.0142, "dense_per_mille": 0,
+        "m_lots": 71, "m_steps": (16.2, 134), "skip_y_ratio": 0.9356, "skip_d_ratio": 0.0142, "dense_per_mille": 0,
         "shared_recipe_ratio": 0.61, "dup_identity_ratio": 0.0033, "active_ratio": 0.30,
         # CD2_PROV 12 / 8,156 step (V1, office 확인 2026-11-04).
         "markers": ("CD", "PROV", "CD2_PROV"), "marker_weights": (1, 1, 0.01),
@@ -206,9 +218,8 @@ FAMILY_SPECS: dict[FamilyToolType, _Spec] = {
 STATUSES = ("ok", "empty", "not_found", "failed")
 NO_STEP_RATIO = 0.03             # 표 D 에만 있는 device 비율 (표 A device 수 대비)
 WINDOW_DAYS = 90
-# 계열 index 의 skip "Y" 비율은 모릅니다 — OFFICE-VERIFY. CD-SEM(-cd)은 47.7% 라
-# recipe_population.SKIPPED_RATIO 와 일부러 갈라 둡니다.
-FAMILY_SKIPPED_RATIO = 0.15
+# 계열 index 의 skip "Y" 는 hv 86.98% / verity 71.52% / provision 93.56% 입니다 (W1,
+# office 확인 2026-11-05) — CD-SEM(-cd) 47.7% 보다 훨씬 커서 spec 마다 둡니다.
 CAP_LOTS = 3                     # prod_id 가 "_CAP_BASE" 인 device, 계열마다 3 (office 확인 2026-11-04)
 HV_BLANK_PARAM_RATIO = 0.049     # hvsem_idp_ver 빈 Parameter 4.9% (office 확인 2026-11-04)
 HV_DUP_NAME_RATIO = 0.527        # 이름이 겹치는 파라미터가 있는 recipe 52.7% (같음)
@@ -221,11 +232,12 @@ HV_TOKEN_NAME_P = 0.58
 # (S8 ABC, S9 A). mock 은 R3 카탈로그의 같은 두 lot 을 세 계열 모두에 R4 로 냅니다.
 R4_LOTS = 2
 _R4_SEED = 20261104
-# 표 B fab 축을 집에서 보이게 하는 두 값. 사무실 숫자는 "같은 (recipe, version) 인데
-# 파라미터가 다른 경우 40건(HV-SEM recipe 1,443 중), 33건은 fab 마다 정해짐" 뿐이라,
-# 여러 fab 에 걸린 recipe 수와 그중 다른 비율은 지어낸 값입니다 — OFFICE-VERIFY.
+# 표 B fab 축을 집에서 보이게 하는 두 값. HV-SEM idp 원천에서 둘 이상의 fac_id 에
+# 걸친 recipe 가 3,198개, 그중 fab 마다 파라미터가 다른 것이 234개(7.3%)입니다 (W3,
+# office 확인 2026-11-05). 표 A recipe 중 몇이 여러 fab 에 걸리는지는 모릅니다 —
+# CROSS_FAB_STEP_RATIO 는 지어낸 값(OFFICE-VERIFY).
 CROSS_FAB_STEP_RATIO = 0.15      # M fab step 중 R3 recipe 를 그대로 쓰는 비율
-FAB_DIFF_RATIO = 0.5             # 여러 fab 에 걸린 recipe 중 fab 마다 파라미터가 다른 비율
+FAB_DIFF_RATIO = 0.073           # 여러 fab 에 걸린 recipe 중 fab 마다 파라미터가 다른 비율
 _HV_TOKEN = {"WAFER": "WF", "LEVEL": "LV", "EDGE": "ED", "EDGE_EX": "EDGE_EX"}
 
 
@@ -254,9 +266,9 @@ def _skip_yn(rng: random.Random, spec: _Spec) -> str:
     D 는 N 과 같은 성격이므로 판정은 그대로 ``!= "Y"`` 입니다.
     """
     roll = rng.random()
-    if roll < FAMILY_SKIPPED_RATIO:
+    if roll < spec["skip_y_ratio"]:
         return "Y"
-    return "D" if roll < FAMILY_SKIPPED_RATIO + spec["skip_d_ratio"] else "N"
+    return "D" if roll < spec["skip_y_ratio"] + spec["skip_d_ratio"] else "N"
 
 
 def _step_name(rng: random.Random, spec: _Spec) -> str:
@@ -288,6 +300,17 @@ def _recipe_name(rng: random.Random, spec: _Spec, lot_cd: str, idx: int) -> str:
     if not is_family_sample_recipe(name) and _digest(f"dense:{lot_cd}:{idx}") % 1000 < spec["dense_per_mille"]:
         return name + "_DENSE"
     return name
+
+
+@lru_cache(maxsize=1)
+def _eqp_fab_names() -> dict[str, str]:
+    """eqp_id -> sem_list fab_name. id 가 겹치는 mock 행은 앞의 것을 씁니다."""
+    from backend.sem_list.providers import mock as sem_list_mock
+
+    names: dict[str, str] = {}
+    for row in sem_list_mock.get_sem_list():
+        names.setdefault(row["eqp_id"], row["fab_name"])
+    return names
 
 
 def _tools_by_fab(tool_type: FamilyToolType) -> dict[str, list[str]]:
@@ -333,11 +356,17 @@ def _r3_steps(rng, tool_type, spec, fac_id, lot_cd, prod_id, n, eqps, base_time)
     return rows
 
 
+def _m_step_count(rng: random.Random, spec: _Spec) -> int:
+    """device 당 M fab step 수 — 1 부터 긴 꼬리(W2: 평균 13~29, 최대 71~134)."""
+    mean, top = spec["m_steps"]
+    return min(top, 1 + int(rng.expovariate(1 / (mean - 1))))
+
+
 def _m_steps(rng, tool_type, spec, fac_id, lot_cd, n, eqps) -> list[FamilyStepRow]:
     """M fab — 90일 창의 unique oper_det_desc. 순서·skip·chg_tm·prod_id 가 없습니다."""
     rows: list[FamilyStepRow] = []
     seen: set[str] = set()
-    for idx in range(n * 3):               # 이름이 겹치면 다시 뽑되 무한히는 아님
+    for idx in range(n * 8):               # 이름이 겹치면 다시 뽑되 무한히는 아님
         if len(rows) == n:
             break
         oper_desc = _step_name(rng, spec)
@@ -358,11 +387,15 @@ def _recipe_tables(
     tool_type: FamilyToolType, spec: _Spec, steps: list[FamilyStepRow], base_time,
 ) -> tuple[list[FamilyParamRow], list[FamilyRecipeStatusRow]]:
     first_eqp: dict[str, str] = {}
-    fabs: dict[str, list[str]] = {}
+    # 표 B 한 벌의 fab 은 (fac_id, fab_name) 입니다 (U4). step 에는 fab_name 이 없어
+    # 그 step 장비의 sem_list fab_name 으로 붙입니다 — Home 가정(OFFICE-VERIFY).
+    fab_name_of = _eqp_fab_names()
+    fabs: dict[str, list[tuple[str, str]]] = {}
     for step in steps:
         first_eqp.setdefault(step["recipe_id"], step["eqp_id"])
-        if step["fac_id"] not in fabs.setdefault(step["recipe_id"], []):
-            fabs[step["recipe_id"]].append(step["fac_id"])
+        fab = (step["fac_id"], fab_name_of.get(step["eqp_id"], step["fac_id"]))
+        if fab not in fabs.setdefault(step["recipe_id"], []):
+            fabs[step["recipe_id"]].append(fab)
 
     params: list[FamilyParamRow] = []
     statuses: list[FamilyRecipeStatusRow] = []
@@ -394,20 +427,22 @@ def _recipe_tables(
             _assign_regions(built, True, prng)
         if tool_type == "hv-sem":
             _hv_raw_names(built, prng)
-        # 표 B 는 (tool_type, recipe_id, fac_id) 마다 한 벌입니다 (S2 A). 대부분 fab 이
-        # 달라도 같은 벌이고, 일부 recipe 만 뒤 fab 에서 마지막 파라미터가 빠집니다(R2).
+        # 표 B 는 (tool_type, recipe_id, fac_id, fab_name) 마다 한 벌입니다 (S2 A, U4).
+        # 대부분 fab 이 달라도 같은 벌이고, 일부 recipe 만 뒤 fab 에서 마지막 파라미터가
+        # 빠집니다(R2 / W3).
         diff = len(fabs[recipe_id]) > 1 and prng.random() < FAB_DIFF_RATIO
-        for nth, fac_id in enumerate(sorted(fabs[recipe_id])):
+        for nth, (fac_id, fab_name) in enumerate(sorted(fabs[recipe_id])):
             rows = built[:-1] if diff and nth and len(built) > 1 else built
-            params += _param_rows(tool_type, spec, recipe_id, fac_id, rows)
+            params += _param_rows(tool_type, spec, recipe_id, fac_id, fab_name, rows)
     return params, statuses
 
 
-def _param_rows(tool_type, spec, recipe_id, fac_id, built) -> list[FamilyParamRow]:
+def _param_rows(tool_type, spec, recipe_id, fac_id, fab_name, built) -> list[FamilyParamRow]:
     out: list[FamilyParamRow] = []
     for seq, param in enumerate(built, start=1):
         out.append({
-            "tool_type": tool_type, "recipe_id": recipe_id, "fac_id": fac_id, "param_seq": seq,
+            "tool_type": tool_type, "recipe_id": recipe_id, "fac_id": fac_id,
+            "fab_name": fab_name, "param_seq": seq,
             "param_name": param["name"],
             "param_type": (
                 hv_param_type(param["name"]) if tool_type == "hv-sem"
@@ -485,7 +520,7 @@ def _tables(tool_type: FamilyToolType):
         if fac_id == "R3":
             # R4 device 는 세 계열에 같은 두 lot 입니다 — 계열 seed 와 무관하게 고릅니다.
             r4_lots = set(random.Random(_R4_SEED).sample(sorted(pool), R4_LOTS))
-            lots = sorted(set(lots[: size - R4_LOTS]) | r4_lots)
+            lots = sorted(set([lot for lot in lots if lot not in r4_lots][: size - R4_LOTS]) | r4_lots)
             cap_lots = set(rng.sample(sorted(set(lots) - r4_lots), CAP_LOTS))
             # 카탈로그에 없는 device (Q11 B) — 카탈로그에 없는 이름으로 지어 붙입니다.
             extra = [f"RZ{i:02d}" for i in range(spec["off_catalog"])]
@@ -501,7 +536,7 @@ def _tables(tool_type: FamilyToolType):
                                    rng.randint(*spec["r3_steps"]), tools[fac_id], mock.BASE_TIME)
             else:
                 steps += _m_steps(rng, tool_type, spec, fac_id, lot_cd,
-                                  rng.randint(*spec["m_steps"]), tools[fac_id])
+                                  _m_step_count(rng, spec), tools[fac_id])
 
     _share_recipes_across_fabs(steps, spec["seed"])
     params, statuses = _recipe_tables(tool_type, spec, steps, mock.BASE_TIME)

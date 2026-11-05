@@ -115,6 +115,8 @@ bm_pm, reso_center, mdc — 8개 문서). 폴더 목록에서 흩어지지 않�
 - 사무실 OpenSearch 3.7 클러스터에서 scroll 은 결과가 클 때 문서를 조용히
   누락합니다(user-confirmed 2026-10-13). 전량 조회는 `search_after` 를 씁니다.
   근거와 정렬 조건은 `hitachi/ebeam_tas_lot_hist.txt` 에 있습니다.
+- `sort: _doc` 로 페이지를 넘기는 전량 집계도 틀립니다 — 사무실 측정에서 약 20%
+  어긋났습니다(2026-11-05). 개수·분포는 composite aggregation 으로 잽니다.
 - Redis 의 DataFrame 은 parquet 직렬화(`df.to_parquet()`, 값 선두 4바이트 `PAR1`)
   입니다. `_runtime/office_redis.py` 의 `read_dataframe` 이 역직렬화를 담당합니다.
 

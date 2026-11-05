@@ -125,6 +125,10 @@ class SummaryRow(ParaBlock):
     lot_cd: str
     fac_id: str
     ctn_desc: str
+    # **device 행 단위**의 recipe 수입니다 — 이 device 의 버킷에 든 distinct recipe.
+    # device 끼리 recipe 를 공유하므로 행을 더한 합은 전체 distinct 수가 아닙니다
+    # (R3 all: 합 17,974 / distinct 14,123, office 확인 2026-11-05). 화면 합계로 본
+    # 18,794 는 하루 전 값이라 기준으로 쓰지 않습니다.
     total_recipe: int
     avail_recipe: int
     avail_recipe_percent: float
@@ -274,7 +278,9 @@ class FamilyStepRow(TypedDict):
 class FamilyParamRow(TypedDict):
     """표 B — 한 recipe·한 fab 의 한 파라미터. param_seq 가 측정 순서입니다.
 
-    정체성은 (tool_type, recipe_id, fac_id, param_seq) 입니다. 같은 (recipe, version)
+    정체성은 (tool_type, recipe_id, fac_id, fab_name, param_seq) 입니다. fac_id 만으로
+    묶으면 같은 (full_name, fac_id, modified) 문서가 5,614 그룹(11,228 문서) 생기고,
+    fab_name 까지 넣으면 8 그룹만 남습니다 (U4, office 확인 2026-11-05). 같은 (recipe, version)
     인데 파라미터가 다른 경우가 40건이고 그중 33건이 fab 마다 하나로 정해져, fab 축을
     둡니다 (S2 A, office 확인 2026-11-04). fab 으로도 정해지지 않는 나머지는 가장
     최근 문서를 씁니다 (S3 A) — "최근" 은 ``version`` 이 아니라 ``modified`` 기준입니다
@@ -283,7 +289,8 @@ class FamilyParamRow(TypedDict):
 
     tool_type: FamilyToolType
     recipe_id: str
-    fac_id: str            # 그 recipe 를 쓰는 step 의 fac_id (표 A)
+    fac_id: str            # idp 문서의 fac_id (문자열 하나, U2)
+    fab_name: str          # idp 문서의 fab_name (M16A 처럼 fac_id 보다 세분)
     param_seq: int
     param_name: str
     param_type: str        # "" = 원천에 종류가 없음 (Q4)

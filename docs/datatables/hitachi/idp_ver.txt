@@ -50,7 +50,10 @@ Index(alias)
                      매칭하지 않고 match 는 토큰이 겹치는 다른 recipe 까지 잡습니다.
   fab_name -> text: fab 필터. **대문자로 저장**되어 있습니다. fab_name.keyword 사용.
   version -> long: IDP 버전. 클수록 최신입니다.
-  modified -> date: 해당 버전이 생성된 시각.
+  modified -> date: 해당 버전이 생성된 시각. 값은 offset 없는 KST wall-clock 문자열
+              이지만 mapping 이 date 라, **range 질의는 9시간 밀립니다**(OpenSearch 가
+              UTC 로 읽음 — hvsem_idp_ver, office 확인 2026-11-05). 정렬은 다 같이 밀려
+              영향이 없고, 경계를 거는 질의만 KST 를 offset 없이 계산해 보냅니다.
   eqp_id -> text(다중값): 이 지문을 보유한 장비의 **EQP ID** 목록(보유).
                           2026-10-13 이전 문서에는 tool IP 가 들어 있습니다(위).
                           값이 1개면 list 가 아니라 bare string 으로 돌아오므로
@@ -62,7 +65,21 @@ Index(alias)
                      아래 "순서는 parameters_list 가 정합니다" 절을 보십시오.
   raw_data -> object: parameter 별 상세 row. ``Mother_Para`` 가 여기 있습니다
               (office 확인 2026-08-10). 아래 "raw_data — mother 의 출처" 절.
-              hvsem_idp_ver (office 확인 2026-11-04, device-statistics 계열 표 B):
+              hvsem_idp_ver (office 확인 2026-11-04~05, device-statistics 계열 표 B):
+              - 조인: -hv 표 A 의 recipe_id 와 full_name 이 그대로 같습니다. -hv recipe
+                1,449 중 575 가 정확히 맞습니다(U1). VeritySEM·Provision recipe 는 이
+                index 에 하나도 없습니다 — AMAT 원천을 따로 만들어야 합니다.
+              - fac_id 는 문자열 하나입니다(U2). eqp_id 처럼 배열이 아닙니다.
+              - ★ 표 B 한 벌은 (full_name, fac_id, **fab_name**) 입니다. (full_name,
+                fac_id, modified) 로 묶으면 5,614 그룹 / 11,228 문서가 겹치고, 원인은
+                fab_name 누락입니다. 적재 쪽 doc_id 키(fab_name|full_name|version|
+                modified, 위)로 넓히면 8 그룹만 남습니다(U4). 그 8 그룹의 동률 처리는
+                미확정입니다.
+              - 둘 이상의 fac_id 에 걸친 recipe 3,198, 그중 fab 마다 파라미터가 다른
+                것 234 (7.3%) 입니다(W3).
+              - 측정 방법 주의: 첫 집계는 ``sort: _doc`` 페이지네이션이라 약 20% 틀렸고,
+                composite aggregation 으로 다시 잰 값입니다(사무실 보고, 2026-11-05).
+                전량 집계에 _doc 정렬 페이지를 쓰지 마십시오.
               - param_seq 는 **raw_data 행 순서**입니다. office_utils 의
                 parameter_conditions() 는 SEQ 를 잘라 내므로 쓰지 않습니다.
               - 빈 Parameter 가 42,657행(4.9%) 있고, 이름이 겹치는 파라미터가 있는
@@ -335,6 +352,5 @@ OTHER)이 할 일이 없어지며 **outlier 뷰와 bloated recipe 신호가 입�
 붙이면 12:00 KST 가 12:00 UTC 로 태깅되어 KST 브라우저에서 21:00 으로 — 9시간 늦게
 표시됩니다.
 
-OFFICE-VERIFY: modified 가 offset 없이 저장된다는 것은 meas_hist index 의 관례를
-따른 **가정**입니다. 적재 쪽이 Z 접미사를 붙여 쓰고 있으면 9시간 어긋납니다.
-사무실 첫 실행 때 실제 modified 값 하나를 눈으로 확인합니다.
+modified 가 offset 없는 KST wall-clock 이라는 것은 hvsem_idp_ver 에서 확인했습니다
+(U3, office 확인 2026-11-05). cdsem_idp_ver 도 같은 적재 경로라 같다고 봅니다.

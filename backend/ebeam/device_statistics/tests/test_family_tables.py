@@ -71,7 +71,7 @@ def test_all_four_statuses_appear_somewhere():
 def test_param_seq_is_dense_and_helpers_lead(family):
     by_recipe: dict[tuple[str, str], list[dict]] = {}
     for p in mock.get_family_params(family):
-        by_recipe.setdefault((p["recipe_id"], p["fac_id"]), []).append(p)   # 표 B 한 벌
+        by_recipe.setdefault((p["recipe_id"], p["fac_id"], p["fab_name"]), []).append(p)  # 표 B 한 벌
     helper_recipes = 0
     for params in by_recipe.values():
         assert [p["param_seq"] for p in params] == list(range(1, len(params) + 1))
@@ -231,7 +231,7 @@ def test_family_normal_rule_markers():
 def test_hv_params_carry_blank_and_duplicate_names():
     by_recipe: dict = {}
     for p in mock.get_family_params("hv-sem"):
-        by_recipe.setdefault((p["recipe_id"], p["fac_id"]), []).append(p["param_name"])
+        by_recipe.setdefault((p["recipe_id"], p["fac_id"], p["fab_name"]), []).append(p["param_name"])
     rows = [n for names in by_recipe.values() for n in names]
     assert 0.02 < rows.count("") / len(rows) < 0.08
     dup = sum(1 for names in by_recipe.values() if len([n for n in names if n]) > len({n for n in names if n}))
@@ -267,18 +267,40 @@ def test_r4_devices_are_the_same_two_in_every_family_and_in_r3_catalog():
 
 @pytest.mark.parametrize("family", FAMILIES)
 def test_table_b_has_one_set_per_recipe_and_fab(family):
-    """S2 A — 표 B 는 (recipe_id, fac_id) 마다 한 벌이고, fab 은 그 recipe 를 쓰는 step 의 fab."""
+    """S2 A / U4 — 표 B 는 (recipe_id, fac_id, fab_name) 마다 한 벌입니다.
+
+    fac_id 는 그 recipe 를 쓰는 step 의 fac_id, fab_name 은 그 step 장비의 sem_list
+    fab_name 입니다(Home 가정).
+    """
     used: dict[str, set[str]] = {}
     for s in mock.get_family_steps(family):
         used.setdefault(s["recipe_id"], set()).add(s["fac_id"])
-    sets: dict[str, dict[str, list[str]]] = {}
+    sets: dict[str, dict[tuple[str, str], list[str]]] = {}
     for p in mock.get_family_params(family):
-        sets.setdefault(p["recipe_id"], {}).setdefault(p["fac_id"], []).append(p["param_name"])
-    assert all(set(fabs) == used[recipe] for recipe, fabs in sets.items())
+        key = (p["fac_id"], p["fab_name"])
+        sets.setdefault(p["recipe_id"], {}).setdefault(key, []).append(p["param_name"])
+    assert all({fac for fac, _ in fabs} == used[recipe] for recipe, fabs in sets.items())
     multi = [fabs for fabs in sets.values() if len(fabs) > 1]
     assert multi, "여러 fab 에 걸린 recipe 가 없으면 fab 축이 집에서 보이지 않습니다"
-    differ = [fabs for fabs in multi if len({tuple(v) for v in fabs.values()}) > 1]
-    assert 0 < len(differ) < len(multi)
+    # 한 fac_id 안에서 fab_name 으로 갈리는 recipe — fac_id 로만 묶으면 뭉칩니다 (U4).
+    assert any(len({fac for fac, _ in fabs}) < len(fabs) for fabs in multi)
+
+
+def test_some_multi_fab_recipes_differ_by_fab():
+    """W3 — 여러 fab 에 걸친 recipe 중 일부(HV-SEM 7.3%)만 fab 마다 파라미터가 다릅니다."""
+    multi = differ = 0
+    for family in FAMILIES:
+        sets: dict[str, dict[tuple[str, str], tuple]] = {}
+        rows: dict[tuple, list[str]] = {}
+        for p in mock.get_family_params(family):
+            rows.setdefault((p["recipe_id"], p["fac_id"], p["fab_name"]), []).append(p["param_name"])
+        for (recipe, fac, fab), names in rows.items():
+            sets.setdefault(recipe, {})[(fac, fab)] = tuple(names)
+        for fabs in sets.values():
+            if len(fabs) > 1:
+                multi += 1
+                differ += len(set(fabs.values())) > 1
+    assert 0 < differ < multi * 0.3
 
 
 def test_sizes_follow_office_counts():
@@ -291,6 +313,15 @@ def test_sizes_follow_office_counts():
         assert len(planstep) == lots and len(planstep - catalog) == off, family
         assert len({s["lot_cd"] for s in steps if s["prod_id"].endswith("_CAP_BASE")}) == 3
         assert abs(len({(s["fac_id"], s["lot_cd"]) for s in steps if not s["prod_id"]}) - m_lots) <= 3
+
+
+def test_family_skip_is_mostly_y():
+    """W1 — 계열 index 는 skip "Y" 가 72~94% 입니다(CD-SEM 47.7% 보다 훨씬 큼)."""
+    office = {"hv-sem": 0.8698, "veritysem": 0.7152, "provision": 0.9356}
+    for family, y in office.items():
+        r3 = [s for s in mock.get_family_steps(family) if s["prod_id"]]
+        share = sum(1 for s in r3 if s["skip_yn"] == "Y") / len(r3)
+        assert abs(share - y) < 0.03, (family, share)
 
 
 def test_r4_devices_fab_differs_between_table_a_and_d():
