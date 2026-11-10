@@ -1,10 +1,8 @@
 name: CI
 
 # Guards the frontend and the Flask backend on every push (and manual runs).
-# Keeps `nuxt typecheck`, the node:test suite, and the backend pytest suite
-# green. ESLint is intentionally NOT gated yet — main still carries
-# pre-existing lint errors in untouched files; add `npm run lint` here once
-# those are cleaned.
+# Keeps ESLint, `nuxt typecheck`, the node:test suite, ruff and the backend
+# pytest suite green.
 on:
   push:
   workflow_dispatch:
