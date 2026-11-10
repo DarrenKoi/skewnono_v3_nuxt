@@ -18,7 +18,7 @@ env:
 
 jobs:
   frontend:
-    name: typecheck + test
+    name: lint + typecheck + test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,6 +38,10 @@ jobs:
       # that `nuxt typecheck` depends on.
       - name: Install
         run: npm ci
+
+      # Warnings do not fail eslint; only errors gate the push.
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
