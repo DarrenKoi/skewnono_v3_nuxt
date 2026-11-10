@@ -200,7 +200,14 @@ def test_a_body_without_content_length_is_still_counted_against_the_cap(
     assert _names(client) == []
 
 
-@pytest.mark.parametrize("name", ["../../evil.txt", "C:\\Users\\me\\evil.txt", "a/b/evil.txt"])
+# The test client writes the filename into the quoted-string unescaped, and
+# werkzeug >= 3.1.9 unescapes it per RFC 9110 (a raw `\U` arrives as `U`). So
+# the Windows path goes on the wire escaped, the way an RFC client sends it:
+# 3.1.9 hands the route single backslashes, 3.1.8 doubled ones, and the
+# route's `\` -> `/` split must reduce both to the basename.
+@pytest.mark.parametrize(
+    "name", ["../../evil.txt", "C:\\\\Users\\\\me\\\\evil.txt", "a/b/evil.txt"]
+)
 def test_an_upload_keeps_only_the_basename(client, write_on, name):
     response = _upload(client, name=name)
     assert response.get_json() == {"path": "/LOG/ARCHIVE/evil.txt"}
