@@ -1,4 +1,10 @@
 Flask>=3.1
+# Pinned exactly: patch releases have changed request parsing. 3.1.9 unescapes
+# the multipart filename per RFC 9110 (a raw `\U` arrives as `U`), which 3.1.8
+# did not, so home (3.1.8) and CI (3.1.9) disagreed on the same test. One
+# version everywhere -- home, CI, office, cloud -- keeps a parse change from
+# landing on one host only. Bump deliberately and run the full suite.
+Werkzeug==3.1.9
 flask-cors>=4.0
 flask-limiter>=3.5
 opensearch-py>=3,<4

@@ -35,6 +35,7 @@ RUNTIME_PACKAGES = (
     ("flask", "Flask"),
     ("flask_cors", "flask-cors"),
     ("flask_limiter", "flask-limiter"),
+    ("werkzeug", "Werkzeug"),
     ("pandas", "pandas"),
     ("pyarrow", "pyarrow"),
     ("numpy", "numpy"),
