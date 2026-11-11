@@ -89,7 +89,7 @@ export const NOTICES: Notice[] = [
   {
     date: '2026-10-22',
     category: '기능추가',
-    title: 'Recipe 검색 — 계산식(Formula) 해석과 파라미터 목록 컬럼 선택',
+    title: 'Recipe 검색 — 계산식(Formula) 해석',
     sections: [
       {
         area: 'Recipe 검색 · 열어 보기',
@@ -127,7 +127,7 @@ export const NOTICES: Notice[] = [
   {
     date: '2026-10-13',
     category: '수정',
-    title: '디바이스 통계 · Recipe 횡전개 — 안 보이던 디바이스 · 장비 표시 수정',
+    title: '디바이스 통계 · Recipe 횡전개 표시 수정',
     sections: [
       {
         area: '디바이스 통계',
