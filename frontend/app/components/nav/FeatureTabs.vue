@@ -26,8 +26,8 @@ type FeatureTab = {
 
 const features: FeatureTab[] = [
   { label: '장비 상태', routeValue: 'index', icon: 'i-lucide-layout-dashboard', enabledToolTypes: ['cd-sem', 'hv-sem', 'veritysem', 'provision'] },
-  { label: 'Recipe 현황', routeValue: 'recipe-status', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem'] },
-  { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: 'Recipe 현황', routeValue: 'recipe-status', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem', 'veritysem', 'provision'] },
+  { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem', 'veritysem', 'provision'] },
   { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   // 라이브 알람 is reachable via the icon-only header button (AppHeader), like /chat —
   // no feature tab. Keep 'live-alarm' in activeFeature so no tab highlights on that page.

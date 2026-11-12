@@ -62,8 +62,10 @@ export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
 export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
   'storage': ['cd-sem', 'hv-sem'],
   'tool-files': ['cd-sem', 'hv-sem', 'veritysem', 'provision'],
-  'recipe-search': ['cd-sem', 'hv-sem'],
-  'recipe-status': ['cd-sem', 'hv-sem'],
+  // AMAT serves both recipe tabs from recipe_usage (MES job history), not from
+  // the Hitachi recipe_search / recipe_tat / fail_issue features.
+  'recipe-search': ['cd-sem', 'hv-sem', 'veritysem', 'provision'],
+  'recipe-status': ['cd-sem', 'hv-sem', 'veritysem', 'provision'],
   'hardware': ['cd-sem', 'hv-sem'],
   'live-alarm': ['cd-sem', 'hv-sem'],
   'device-statistics': ['cd-sem'],

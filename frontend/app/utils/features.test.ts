@@ -159,6 +159,12 @@ test('featureSupportsToolType answers for live slugs and unknown strings alike',
   assert.equal(featureSupportsToolType('tttm', 'hv-sem'), false)
   assert.equal(featureSupportsToolType('pm-planning', 'cd-sem'), false)
   assert.equal(featureSupportsToolType('storage', 'veritysem'), false)
+  assert.equal(featureSupportsToolType('recipe-search', 'veritysem'), true)
+  assert.equal(featureSupportsToolType('recipe-status', 'provision'), true)
+  // No measurement-value source exists for AMAT, so these stay Hitachi-only.
+  assert.equal(featureSupportsToolType('hardware', 'veritysem'), false)
+  assert.equal(featureSupportsToolType('skewvoir', 'provision'), false)
+  assert.equal(featureSupportsToolType('device-statistics', 'provision'), false)
   assert.equal(featureSupportsToolType('not-a-feature', 'cd-sem'), false)
 })
 
@@ -212,6 +218,19 @@ test('non-ebeam paths have no tab', () => {
 // a missing page is a link to nowhere (VUE_ROUTER_R0004, no navigation).
 test('every equipment-status sub-tab a family is granted has a page', () => {
   for (const tab of EQUIPMENT_STATUS_SUBTABS) {
+    for (const toolType of FEATURE_TOOL_TYPES[tab]) {
+      const dir = `app/pages/ebeam/${toolType}/[fab]`
+      assert.ok(
+        existsSync(`${dir}/${tab}.vue`) || existsSync(`${dir}/${tab}/index.vue`),
+        `${toolType} is granted ${tab} but has no page`
+      )
+    }
+  }
+})
+
+// The top nav pill for a feature is a link too, so the same holds for it.
+test('every recipe tab a family is granted has a page', () => {
+  for (const tab of ['recipe-search', 'recipe-status'] as const) {
     for (const toolType of FEATURE_TOOL_TYPES[tab]) {
       const dir = `app/pages/ebeam/${toolType}/[fab]`
       assert.ok(
