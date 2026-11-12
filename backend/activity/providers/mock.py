@@ -498,6 +498,10 @@ _MOCK_PAGE_CALLS: dict[str, tuple[str, ...]] = {
         "GET /api/hvsem/recipe-tat/summary",
         "GET /api/hvsem/recipe-tat/ranking",
     ),
+    "recipe_usage": (
+        "GET /api/veritysem/recipe-usage/recipes",
+        "GET /api/provision/recipe-usage/status",
+    ),
     "storage": ("GET /api/hvsem/storage", "GET /api/hvsem/ppid-unavailable"),
     "hardware": (
         "GET /api/hvsem/hardware/HV-SEM01/status",
