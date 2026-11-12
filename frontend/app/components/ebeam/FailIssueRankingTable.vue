@@ -59,6 +59,7 @@
       :columns="columns"
       :data="pagedRows"
       :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
+      :meta="meta"
       sticky="header"
       :ui="tableUi"
     >
@@ -126,7 +127,7 @@
 
 <script setup lang="ts" generic="T extends object">
 import type { TableColumn } from '@nuxt/ui'
-import type { SortingState } from '@tanstack/vue-table'
+import type { SortingState, TableMeta } from '@tanstack/vue-table'
 import type { RecipeStatusSummaryItem } from '~/utils/recipeStatusSummary'
 import type { RankingTableState } from '~/utils/rankingTable'
 
@@ -147,6 +148,9 @@ const props = defineProps<{
   // the parent so the search columns can stay typed per panel.
   searchPredicate: (row: T, term: string) => boolean
   resetKey?: unknown
+  // UTable's own `meta`, passed through for per-row classes (a panel that
+  // dims rows which carry no data).
+  meta?: TableMeta<T>
   downloadLabel?: string
 }>()
 

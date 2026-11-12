@@ -32,6 +32,7 @@
           v-model="range"
           range
           :number-of-months="2"
+          :min-value="minValue"
           :max-value="anchorValue"
           :placeholder="anchorValue"
           size="sm"
@@ -63,6 +64,10 @@ const props = defineProps<{
   // of wall-clock today. Used by callers tied to mock data with a fixed
   // ceiling — without it presets land outside the data window.
   anchorDate?: string
+  // Optional ISO YYYY-MM-DD floor: the earliest day that has data. Days before
+  // it are disabled in the calendar. A preset can still reach past it, so a
+  // caller that sets this clamps the emitted range as well.
+  minDate?: string
   // Optional override for the preset list. Defaults to Today/7/14/30 days —
   // callers bound to a different retention window can pass their own list
   // instead.
@@ -86,6 +91,8 @@ const anchorValue = computed(() => {
   if (props.anchorDate) return parseIsoToCalendarDate(props.anchorDate)
   return wallToday.value
 })
+
+const minValue = computed(() => props.minDate ? parseIsoToCalendarDate(props.minDate) : undefined)
 
 const formatCalendarDate = (value: DateValue): string => {
   const y = value.year.toString().padStart(4, '0')
