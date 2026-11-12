@@ -48,7 +48,10 @@ const FAB_CODE = String.raw`[RM]\d{1,2}[A-C]?`
 const FAB_SEGMENT = new RegExp(`^${FAB_CODE}(,${FAB_CODE})*$`, 'i')
 
 const TAB_ROUTE = 'recipe-status'
-const VALID_TABS = new Set(['tat', 'align', 'meas'])
+// tat / align / meas are the Hitachi view's tabs; tat / fail / equipment are
+// the AMAT view's (RecipeUsageStatusView). One set because the rules here are
+// family-agnostic, as the backend's are.
+const VALID_TABS = new Set(['tat', 'align', 'meas', 'fail', 'equipment'])
 
 // The canonical path for the fab-hub shape: /ebeam/<tool> and
 // /ebeam/<tool>/<fab> with no page segment after them, which is

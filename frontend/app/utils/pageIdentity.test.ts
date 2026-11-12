@@ -54,6 +54,25 @@ test('recipe-status tabs are three different identities', () => {
   assert.equal(new Set([tat, align, meas]).size, 3)
 })
 
+test('the AMAT recipe-status tabs are their own identities, and ?recipe= is state within one', () => {
+  assert.equal(
+    resolvePageIdentity('/ebeam/veritysem/M14/recipe-status', { tab: 'fail' }),
+    'veritysem/recipe-status?tab=fail'
+  )
+  assert.equal(
+    resolvePageIdentity('/ebeam/provision/M14/recipe-status', { tab: 'equipment', recipe: 'P/L/R' }),
+    'provision/recipe-status?tab=equipment'
+  )
+  assert.equal(
+    buildPageViewPath('/ebeam/veritysem/M14/recipe-status', { tab: 'fail', recipe: 'A/B/C/D' }),
+    '/ebeam/veritysem/M14/recipe-status?tab=fail'
+  )
+  assert.equal(
+    resolvePageIdentity('/ebeam/provision/M14/recipe-search', { recipe: 'P/L/R' }),
+    'provision/recipe-search'
+  )
+})
+
 test('recipe-status without a tab is unresolved', () => {
   // RecipeStatusView writes ?tab= back on mount; firing before that would
   // count one visit twice.
@@ -361,7 +380,13 @@ test('a page open is posted to its family’s beacon URL', () => {
 const APPROVED_FINER_ROWS = [
   '/ebeam/cd-sem/M14/recipe-status?tab=tat',
   '/ebeam/cd-sem/M14/recipe-status?tab=align',
-  '/ebeam/cd-sem/M14/recipe-status?tab=meas'
+  '/ebeam/cd-sem/M14/recipe-status?tab=meas',
+  // The AMAT view of the same route (tat / fail / equipment): the same
+  // exception, a tab is an open. Still recipe-status and nothing else.
+  '/ebeam/veritysem/M14/recipe-status?tab=tat',
+  '/ebeam/veritysem/M14/recipe-status?tab=fail',
+  '/ebeam/veritysem/M14/recipe-status?tab=equipment',
+  '/ebeam/provision/R3/recipe-status?tab=fail'
 ]
 
 const rowLabel = (row: { path: string, query: Record<string, unknown> }) => {
@@ -388,9 +413,9 @@ test('contract: every ranked page resolves to a non-null identity', () => {
   }
 })
 
-test('contract: the finerThanSlug marker is exactly the three recipe-status tabs', () => {
+test('contract: the finerThanSlug marker is exactly the approved recipe-status tabs', () => {
   // Without this, future drift could be silenced by marking the failing row
-  // instead of fixing it. A fourth marker must force a conversation.
+  // instead of fixing it. A marker off this list must force a conversation.
   const marked = contract.filter(r => r.finerThanSlug).map(rowLabel).sort()
 
   assert.deepEqual(marked, [...APPROVED_FINER_ROWS].sort())
