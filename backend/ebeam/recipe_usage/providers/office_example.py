@@ -119,8 +119,15 @@ def _normalize(df: pd.DataFrame, key: str, columns: tuple[str, ...]) -> list[dic
             column: _COERCE.get(column, _text)(value)
             for column, value in record.items()
         }
-        if row["eqp_id"] and row["recipe_id"]:
-            rows.append(row)
+        if not (row["eqp_id"] and row["recipe_id"]):
+            continue
+        if "dt" in row and len(row["dt"]) != 10:
+            # A usage row without a date would surface as data_start == "".
+            raise LookupError(
+                f"Redis key {key!r} has a usage row with no valid dt "
+                f"(eqp_id={row['eqp_id']!r}, recipe_id={row['recipe_id']!r})"
+            )
+        rows.append(row)
     return rows
 
 

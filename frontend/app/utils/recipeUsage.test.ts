@@ -105,7 +105,7 @@ test('one failed run out of one does not lead its tie on rate', () => {
   assert.deepEqual(ids(ranked), ['ONE_OF_20', 'ONE_OF_ONE'])
   assert.deepEqual(
     ranked.map(row => [row.low_sample, row.fail_rate_ranked, row.fail_rate]),
-    [[false, 0.05, 0.05], [true, 0, 1]]
+    [[false, 0.05, 0.05], [true, 1, 1]]
   )
 })
 

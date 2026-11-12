@@ -93,6 +93,12 @@ def test_nulls_and_datetime_columns_are_normalized_at_the_boundary():
     assert type(rows[0]["runs"]) is int
 
 
+def test_a_usage_row_without_a_date_is_an_upstream_error():
+    df = pd.DataFrame([{**USAGE, "dt": pd.NaT}])
+    with pytest.raises(LookupError, match="no valid dt"):
+        office._normalize(df, "some_key", USAGE_COLUMNS)
+
+
 def test_normalized_rows_feed_the_shared_shaping():
     df = pd.DataFrame([USAGE, {**USAGE, "eqp_id": "NOT_IN_ROSTER", "runs": 99}])
     roster = family_roster(

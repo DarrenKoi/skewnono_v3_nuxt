@@ -61,8 +61,8 @@ export const RECIPE_USAGE_MIN_FAIL_RUNS = 5
 export interface RecipeUsageFailRow extends RecipeUsageRankingRow {
   /** Below the sample floor: its rate is shown but never ranks. */
   low_sample: boolean
-  /** fail_rate, or 0 below the floor. The Fail table sorts on this, so one
-   *  failed run out of one cannot lead a rate sort. */
+  /** The Fail table's rate sort column. Low-sample rows are pinned below the
+   *  rest in both directions (`pinLast`), so 1 fail out of 1 never leads. */
   fail_rate_ranked: number
 }
 
@@ -75,10 +75,11 @@ export const rankRecipeFails = (
     .filter(row => row.fail_runs > 0)
     .map((row) => {
       const lowSample = row.runs < minRuns
-      return { ...row, low_sample: lowSample, fail_rate_ranked: lowSample ? 0 : row.fail_rate }
+      return { ...row, low_sample: lowSample, fail_rate_ranked: row.fail_rate }
     })
     .sort((a, b) =>
       b.fail_runs - a.fail_runs
+      || Number(a.low_sample) - Number(b.low_sample)
       || b.fail_rate_ranked - a.fail_rate_ranked
       || a.recipe_id.localeCompare(b.recipe_id))
 

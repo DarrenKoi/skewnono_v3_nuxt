@@ -58,7 +58,7 @@
       v-model:sorting="sorting"
       :columns="columns"
       :data="pagedRows"
-      :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
+      :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false, manualSorting: !!pinLast }"
       :meta="meta"
       sticky="header"
       :ui="tableUi"
@@ -143,6 +143,9 @@ const props = defineProps<{
   rows: readonly T[]
   columns: TableColumn<T>[]
   sortableIds: readonly string[]
+  // Per sort column: rows that stay below the rest in BOTH directions (a rate
+  // from too few runs must not lead an ascending sort either).
+  pinLast?: Readonly<Record<string, (row: T) => boolean>>
   defaultSortId: string
   // Returned true if a row matches the lowercased search term. Owned by
   // the parent so the search columns can stay typed per panel.
@@ -203,7 +206,9 @@ const sortedRows = computed(() => {
   if (!current) return filteredRows.value
   const id = current.id
   const dir = current.desc ? -1 : 1
+  const pinned = props.pinLast?.[id]
   return [...filteredRows.value].sort((a, b) => {
+    if (pinned && pinned(a) !== pinned(b)) return pinned(a) ? 1 : -1
     const av = getSortableNumber(a, id)
     const bv = getSortableNumber(b, id)
     return (av - bv) * dir

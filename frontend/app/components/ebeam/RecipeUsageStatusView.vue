@@ -43,7 +43,7 @@
       title="Recipe 현황 데이터를 불러오는 중입니다."
     />
     <AppEmptyState
-      v-else-if="!data.anchor_date"
+      v-else-if="!data.anchor_date && !data.equipments.length"
       title="적재된 작업 이력이 없습니다."
       description="선택한 fab의 장비에 MES 작업 이력이 아직 없습니다."
     />
@@ -123,6 +123,7 @@
           :rows="failRows"
           :columns="failColumns"
           :sortable-ids="['fail_runs', 'runs', 'fail_rate_ranked']"
+          :pin-last="{ fail_rate_ranked: row => row.low_sample }"
           default-sort-id="fail_runs"
           :reset-key="cacheKey"
           :search-predicate="recipeSearchPredicate"
@@ -231,8 +232,9 @@ type StatusTab = typeof TABS[number]['value']
 const isTab = (value: unknown): value is StatusTab => TABS.some(tab => tab.value === value)
 
 // The window ends at the anchor date, which is yesterday at best, so a
-// "Today" preset would name a day that has no data.
-const DATE_PRESETS = [7, 14, 30, 60, 90].map(days => ({ label: `Last ${days} days`, days }))
+// "Today" preset would name a day that has no data. The popover subtracts
+// `days` from the end and the API range is inclusive, hence the -1.
+const DATE_PRESETS = [7, 14, 30, 60, 90].map(days => ({ label: `Last ${days} days`, days: days - 1 }))
 
 const route = useRoute()
 const router = useRouter()
