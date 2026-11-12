@@ -61,6 +61,11 @@ _VALID_PROVIDERS = frozenset({"mock", "office"})
 # exactly one machine.
 _OFFICE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "pm_planning": ("sem_list",),
+    # recipe_usage keeps a key row only when its eqp_id is in the sem_list
+    # roster, and takes each tool's fab from there. A mock roster matches no
+    # office eqp_id: every row is dropped and both AMAT pages answer 200 with
+    # the fabricated tools at zero.
+    "recipe_usage": ("sem_list",),
     "storage": ("sem_list",),
     # tool_files resolves every tool's IP and FTP account from sem_list; a mock
     # roster would send real credentials to fabricated addresses.
