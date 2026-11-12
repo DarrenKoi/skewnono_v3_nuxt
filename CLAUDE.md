@@ -200,29 +200,6 @@ flag. Full steps, including the bundle's `preflight.py`: `docs/deployment.md`.
 
 ## Agent skills
 
-### Global skills that read this repo: the `oc-*` family
-
-| Skill | Use for |
-| --- | --- |
-| `oc-review` | Two-axis review (Standards + Spec) of a diff, delegated to an opencode model, then reconciled against Claude's own reading |
-| `oc-discuss` | Debate a decision with an opencode model over up to three rounds, ending in AGREED / DISPUTED / I-WAS-WRONG |
-
-These two are installed **globally** at `~/.claude/skills/`, not in this
-repo, so they work in any project. They share `~/.claude/skills/_opencode/`
-(`oc.sh`, the tier table in `models.md`, the Fowler smell baseline, and the
-logging format); that folder has no `SKILL.md`, so it is not itself a skill.
-
-Everything SKEWNONO-specific they need lives in **`.claude/oc-project.md`** —
-the escalation surfaces, the extra smells (mock/office formula drift and
-friends), the constraints an outside model cannot infer,
-the verify commands, and the logging destination. Keep it current the way
-`CLAUDE.md` is kept current: the skills read it, and a stale overlay sends a
-delegated reviewer at the wrong surfaces. The file's contract is
-`~/.claude/skills/_opencode/project-overlay.md`.
-
-Every `oc-*` run leaves a record under `docs/opencode/`; opencode always runs
-read-only (`--agent plan`), so Claude applies any resulting edits.
-
 ### Issue tracker
 
 Issues and specs are tracked as Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
