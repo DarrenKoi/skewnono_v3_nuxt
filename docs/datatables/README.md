@@ -43,6 +43,7 @@
 | `chat/chat_office_adapter_handoff.txt` | RAG 측 agent 의 handoff 편지(2026-08-27) — 공개 API 셋과 seam 채우기 지시 | `chat` | 참고 문서(원문 보존, 오탈자 포함) |
 | `provision/provision_hosts.txt` | Redis `v3_df_provision_hosts`(30분 주기) + `v3_df_provision_version`(하루 1회), 읽기 전용 | `sem_list` (Provision 장비 리스트·미연결 장비) | 구현완료(사무실 검증 대기) |
 | `veritysem/verity_hosts.txt` | Redis `v3_df_verity_hosts` + `v3_df_verity_version`, 읽기 전용 | `sem_list` (VeritySEM 장비 리스트·미연결 장비) | 구현완료(사무실 검증 대기) |
+| `veritysem/recipe_usage.txt` | Redis `v3_df_{verity,provision}_recipes`(recipe 목록) + `v3_df_{verity,provision}_recipe_usage`(일별 사용량) + hash `v3_{verity,provision}_unique_rcp_list`(장비 상주 recipe), 읽기 전용. 두 계열을 한 문서에 적습니다 | `ebeam/recipe_usage` (VeritySEM · Provision 의 recipe 검색 · recipe 현황) | 구현완료(명세 user-confirmed 2026-11-12, Provision hash 이름 `OFFICE-VERIFY`, 사무실 검증 대기) |
 | `afm/afm_redis.txt` | Redis hash `afm_d1_tools` + `afm_d2_measurements`, MinIO `2067928/afm/<TOOL>/<측정키>/` | `afm` | 구현완료(명세 user-confirmed 2026-10-06, 사무실 검증 대기) |
 | `afm/afm_raw_files.txt` | AFM 장비 raw 파일(csv·profile txt·webp) — ETL 이전. 위 적재물의 원천 | `afm` | raw 사실 office 확인 2026-10-02 |
 | `hitachi/recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |
@@ -123,7 +124,7 @@ bm_pm, reso_center, mdc — 8개 문서). 폴더 목록에서 흩어지지 않�
 ## Vendor subdirectory convention
 
 이 폴더는 한 사무실에 여러 장비 vendor 가 섞여 운영됨에 따라 vendor 별로
-분리되어 있습니다. 현재 `hitachi/` 만 채워져 있고, `veritysem/` 과 `provision/` 은
-다음 추가 대상의 stub 입니다. `afm/` 은 e-beam 계열이 아닌 AFM 장비의 문서이고,
+분리되어 있습니다. `hitachi/` 가 대부분을 차지하고, `veritysem/` 과 `provision/` 에는
+장비 명부와 recipe 목록 · 사용량 문서만 있습니다(측정 데이터 소스는 아직 없습니다). `afm/` 은 e-beam 계열이 아닌 AFM 장비의 문서이고,
 `chat/` 은 장비 소스가 아닌 handoff 원문입니다. 새 vendor 를 이 폴더에 추가할 때는
 `.claude/skills/add-vendor/SKILL.md` 의 절차를 따릅니다.

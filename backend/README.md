@@ -74,7 +74,7 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
     |   |   |-- routes.py        # Blueprint("hardware") — /api/<tool_slug>/hardware/<eqp_id>/<service>
     |   |   `-- providers/<tab>/ # each tab is its own mock.py + office_example.py pair
     |   `-- <other features>/    # fail_issue, lateral_recipe, live_alarm, pm_planning,
-    |                            # recipe_search, recipe_tat, skew — same
+    |                            # recipe_search, recipe_tat, recipe_usage (AMAT only), skew — same
     |                            # routes.py/contracts.py/data.py/providers/ shape
     |-- sem_list/                # feature: cross-tool SEM list
     |   |-- __init__.py          # re-exports `bp`

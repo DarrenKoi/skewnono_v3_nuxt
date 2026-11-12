@@ -1,7 +1,8 @@
-# VeritySEM 데이터 테이블 (stub)
+# VeritySEM 데이터 테이블
 
 이 폴더는 VeritySEM (Applied Materials) CD-SEM 의 office 데이터 스키마
-문서를 담을 자리입니다. 현재는 stub 상태 — vendor 가 추가되지 않았습니다.
+문서를 담는 폴더입니다. 측정 데이터 소스는 아직 없으며, 장비 명부(`verity_hosts.txt`)와
+recipe 목록 · 사용량(`recipe_usage.txt`)만 연결되어 있습니다.
 
 ## 추가 절차
 
@@ -19,8 +20,10 @@ adapter 를 도입하며, 이 폴더에 스키마 문서를 추가하는 작업�
 | tool version | 장비의 `/D_drive/Qrelease/current_version.ini` 원문 문자열이며 형식은 `Ver_<maj>_<min>_<pat>_<build>_Win7` 입니다. Provision(`16.10.33.40755`)과 정규화하지 않습니다 (user-confirmed 2026-10-23). key 는 `v3_df_verity_version` 이며 `eqp_id` 가 없어 `eqp_ip` 로 join 합니다 (`verity_hosts.txt`, user-confirmed 2026-10-23) |
 | 측정 단위 | 측정 1회가 파일 또는 폴더 1개입니다 (user-confirmed 2026-10-14) |
 | Redis · OpenSearch 소스 | 측정 데이터 소스는 **없습니다.** 적재(loader)부터 만들어야 합니다. 단, 장비별 host 명부 Redis `v3_df_verity_hosts` 와 tool version `v3_df_verity_version` 이 있으며, `sem_list` 가 이 둘로 VeritySEM 의 장비 리스트·미연결을 판정합니다 — tool IP 가 곧 data IP 입니다 (`verity_hosts.txt`, user-confirmed 2026-10-23) |
-| 측정 이력 | **없습니다.** `meas_hist` 에 이 계열 문서가 없으며 적재부터 만들어야 합니다 |
+| recipe 목록 · 사용량 | 있습니다. Redis `v3_df_verity_recipes`(장비별 recipe 목록), `v3_df_verity_recipe_usage`(일별 사용량), `v3_verity_unique_rcp_list`(장비 상주 recipe)이며 `ebeam/recipe_usage` 가 읽습니다. MES 작업 이력의 집계이고 측정값은 아닙니다 (`recipe_usage.txt`, user-confirmed 2026-11-12) |
+| 측정 이력 | **없습니다.** `meas_hist` 에 이 계열 문서가 없으며 적재부터 만들어야 합니다. 위 recipe 사용량 key 는 작업 횟수 · wafer 수 · 소요 시간만 담습니다 |
 | 알람 ALID | Hitachi(9006 / 9007 / 9035)와 다릅니다. 실제 코드는 `OFFICE-VERIFY` (추후 확인 예정) |
 
-따라서 이 계열의 feature 는 "기존 소스에 어댑터를 붙이는" 작업이 아니라
-"FTP 에서 소스를 만드는" 작업이 먼저입니다.
+따라서 이 계열의 **측정 데이터** feature 는 "기존 소스에 어댑터를 붙이는" 작업이
+아니라 "FTP 에서 소스를 만드는" 작업이 먼저입니다. recipe 목록 · 사용량은 예외이며
+이미 Redis 에 적재되어 있습니다.

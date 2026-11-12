@@ -106,6 +106,7 @@ dispatcher를 통해 그 피처의 데이터를 읽습니다.** 이 경우 두 �
 | 피처 | 의존 대상 | 이유 |
 | --- | --- | --- |
 | `pm_planning` | `sem_list` | 장비 명단을 `sem_list/roster.py`의 `fleet_rows()`로 받은 뒤 그 `eqp_id`로 meas_hist를 조회합니다 |
+| `recipe_usage` | `sem_list` | key의 행을 sem_list roster의 `eqp_id`로 걸러 내고 fab도 roster에서 가져옵니다. mock roster이면 모든 행이 버려지고 지어낸 장비만 실적 0으로 나옵니다 |
 | `storage` | `sem_list` | office adapter가 모든 행을 `eqp_ip`로 live sem_list와 조인합니다 |
 | `tttm` | `sem_list` | 위와 같습니다. 두 피처는 같은 roster 법칙을 씁니다 |
 
