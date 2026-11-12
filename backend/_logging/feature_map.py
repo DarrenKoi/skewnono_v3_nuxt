@@ -71,6 +71,11 @@ _TOOL_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("skew",              "skew_check"),   # pre-rename API path
     ("pm-planning",       "pm_planning"),
     ("tool-files",        "tool_files"),
+    # AMAT only (VeritySEM / Provision). The API has its own slug because it is
+    # its own backend feature; the PAGES that call it are the same
+    # recipe-search / recipe-status pages the Hitachi families have, so they
+    # keep those page slugs below and the family axis tells them apart.
+    ("recipe-usage",      "recipe_usage"),
 )
 
 _FEATURE_RULES: tuple[tuple[str, str], ...] = tuple(
@@ -206,10 +211,18 @@ _FAB_SEGMENT = re.compile(rf"^{_FAB_CODE}(,{_FAB_CODE})*$", re.IGNORECASE)
 # ?tab= on recipe-status is the real identity. align and meas are two views of
 # one feature: /api/<tool>/fail-issue returns align_fail_* and meas_fail_*
 # together.
+#
+# fail and equipment are the AMAT view's tabs (tat / fail / equipment). They
+# take the slug of the Hitachi tab that answers the same question -- the
+# failure ranking, and 장비별 which is part of recipe_tat -- so one page keeps
+# one series across families, as `storage` does. The table stays
+# family-agnostic: a tab a family's view does not have never arrives.
 _RECIPE_STATUS_TABS = {
-    "tat":   "recipe_tat",
-    "align": "fail_issue",
-    "meas":  "fail_issue",
+    "tat":       "recipe_tat",
+    "align":     "fail_issue",
+    "meas":      "fail_issue",
+    "fail":      "fail_issue",
+    "equipment": "recipe_tat",
 }
 
 

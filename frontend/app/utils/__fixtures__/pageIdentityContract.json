@@ -410,5 +410,67 @@
     "slug": "storage",
     "family": "veritysem",
     "comment": "A family with no pages built yet still resolves — the page rules are family-agnostic"
+  },
+  {
+    "path": "/ebeam/veritysem/M14/recipe-search",
+    "query": {},
+    "slug": "recipe_search",
+    "family": "veritysem",
+    "comment": "AMAT recipe list (backend feature recipe_usage). Same page as the Hitachi one, so the same slug; the family tells them apart"
+  },
+  {
+    "path": "/ebeam/provision/R3/recipe-search",
+    "query": {
+      "recipe": "4S8/4S8_CBL_C0A_UPH_4P/AVIS"
+    },
+    "slug": "recipe_search",
+    "family": "provision",
+    "comment": "?recipe= is state within the page, not an identity"
+  },
+  {
+    "path": "/ebeam/veritysem/M14/recipe-status",
+    "query": {},
+    "slug": null,
+    "family": "veritysem",
+    "comment": "No tab yet, as on the Hitachi view"
+  },
+  {
+    "path": "/ebeam/veritysem/M14/recipe-status",
+    "query": {
+      "tab": "tat"
+    },
+    "slug": "recipe_tat",
+    "family": "veritysem",
+    "finerThanSlug": true,
+    "comment": "AMAT view's tabs are tat / fail / equipment"
+  },
+  {
+    "path": "/ebeam/veritysem/M14/recipe-status",
+    "query": {
+      "tab": "fail"
+    },
+    "slug": "fail_issue",
+    "family": "veritysem",
+    "finerThanSlug": true,
+    "comment": "AMAT has one fail tab where Hitachi has align + meas; same slug"
+  },
+  {
+    "path": "/ebeam/veritysem/M14/recipe-status",
+    "query": {
+      "tab": "equipment"
+    },
+    "slug": "recipe_tat",
+    "family": "veritysem",
+    "finerThanSlug": true,
+    "comment": "Its own open, filed under recipe_tat: on the Hitachi side 장비별 is part of that feature"
+  },
+  {
+    "path": "/ebeam/provision/R3/recipe-status",
+    "query": {
+      "tab": "fail"
+    },
+    "slug": "fail_issue",
+    "family": "provision",
+    "finerThanSlug": true
   }
 ]
