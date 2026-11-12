@@ -42,6 +42,7 @@ too (`_OFFICE_DEPENDENCIES`): the roster is the join for every row here.
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Callable
 
 import pandas as pd
@@ -89,6 +90,14 @@ def _day(value) -> str:
     return _stamp(value)[:10]
 
 
+def _is_date(text: str) -> bool:
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        return False
+    return len(text) == 10
+
+
 # Anything not named here is text.
 _COERCE: dict[str, Callable] = {
     "n_uses": _int,
@@ -121,7 +130,7 @@ def _normalize(df: pd.DataFrame, key: str, columns: tuple[str, ...]) -> list[dic
         }
         if not (row["eqp_id"] and row["recipe_id"]):
             continue
-        if "dt" in row and len(row["dt"]) != 10:
+        if "dt" in row and not _is_date(row["dt"]):
             # A usage row without a date would surface as data_start == "".
             raise LookupError(
                 f"Redis key {key!r} has a usage row with no valid dt "
