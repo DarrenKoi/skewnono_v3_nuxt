@@ -208,7 +208,9 @@ const sourceOptions = computed(() => [
   }))
 ])
 
-const SORTABLE_IDS: readonly RecipeCatalogSortKey[] = ['recipe_id', 'tool_count', 'n_uses', 'first_used', 'last_used']
+const SORTABLE_IDS: readonly RecipeCatalogSortKey[] = props.toolType === 'provision'
+  ? ['recipe_id', 'product_id', 'layer_id', 'recipe_name', 'tool_count', 'n_uses', 'first_used', 'last_used']
+  : ['recipe_id', 'tool_count', 'n_uses', 'first_used', 'last_used']
 const sorting = ref<SortingState>([{ id: 'last_used', desc: true }])
 
 const sortedRows = computed(() => {

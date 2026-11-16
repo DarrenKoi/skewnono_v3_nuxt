@@ -8,9 +8,11 @@ Redis key feed this feature, and their grains differ:
 * usage keys  -- one row per (dt, eqp_id, recipe_id): daily runs for the loaded
   partitions (about 90 days, never assumed -- count dt).
 
-`recipe_id` is the family's own full name and is NEVER split here:
+`recipe_id` is the family's own full name; a VeritySEM id is NEVER split:
 Provision `<Product>/<Layer>/<RecipeName>`, VeritySEM `<TYPE>/<DEVICE>/<LAYER>/<JOB>`.
-Only Provision ships pre-split columns; VeritySEM answers "" for them.
+Only Provision ships pre-split columns; VeritySEM answers "" for them. A
+resident-only Provision recipe (no list-key row) is split on "/" when it has
+exactly three parts, so the three columns stay sortable.
 
 Times are KST strings exactly as stored (no offset). Dates are KST `YYYY-MM-DD`.
 `fab_name` is the roster's (sem_list) current fab; `fab_id` (MES history, with
@@ -48,7 +50,7 @@ RecipeSource = Literal["mes", "tool", "both"]
 class CatalogRow(TypedDict):
     recipe_id: str
     fab_name: str
-    # Provision only; "" for VeritySEM.
+    # Provision only; "" for VeritySEM and for a non-3-part resident-only id.
     product_id: str
     layer_id: str
     recipe_name: str

@@ -69,7 +69,8 @@ recipe_id 형식
 VeritySEM 의 recipe_id 는 4조각을 통짜로 저장합니다. **무조건 4조각으로 파싱하지
 않습니다** — 4조각으로 자르면 10 행이 깨집니다. 적재기는 "/" 가 2개 미만인 행만 버리므로,
 "/" 가 2개이거나 4개 이상인 VeritySEM id 가 key 에 남아 있습니다. SKEWNONO 는 recipe_id 를
-어디서도 자르지 않고, Provision 의 세 조각은 key 가 준 split 컬럼만 씁니다.
+자르지 않습니다(VeritySEM). Provision 의 세 조각은 key 가 준 split 컬럼을 쓰고, key 에 행이
+없는 장비 상주 전용 recipe 만 "/" 로 정확히 3조각일 때 잘라 채웁니다(user-confirmed 2026-11-16).
 
 이 key 는 MES 실측 목록이라 JobStart 가 있는 recipe 만 있습니다. 장비 내부용 · 모니터용
 recipe 는 없습니다(Key 3 에 있습니다).

@@ -31,13 +31,15 @@ export const filterRecipeCatalog = (
   rows.filter(row =>
     (source === 'all' || row.source === source) && matchesRecipeTokens(row.recipe_id, query))
 
-export type RecipeCatalogSortKey = 'recipe_id' | 'tool_count' | 'n_uses' | 'first_used' | 'last_used'
+export type RecipeCatalogSortKey
+  = 'recipe_id' | 'product_id' | 'layer_id' | 'recipe_name' | 'tool_count' | 'n_uses' | 'first_used' | 'last_used'
 
+// '' (an unsplit Provision id) is "no value", like a null date.
 const catalogSortValue = (row: RecipeUsageCatalogRow, key: RecipeCatalogSortKey) =>
-  key === 'tool_count' ? row.eqp_ids.length : row[key]
+  key === 'tool_count' ? row.eqp_ids.length : (row[key] === '' ? null : row[key])
 
-/** A recipe with no usage date (source `tool`) sorts last in BOTH directions:
- *  "never used" is not the oldest date, and must not lead an ascending sort. */
+/** A missing value (no usage date, no split column) sorts last in BOTH
+ *  directions: "never used" is not the oldest date, and must not lead. */
 export const sortRecipeCatalog = (
   rows: readonly RecipeUsageCatalogRow[],
   key: RecipeCatalogSortKey,

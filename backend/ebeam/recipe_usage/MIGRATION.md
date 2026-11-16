@@ -59,8 +59,9 @@ module load. See the docstring of `providers/mock.py` for what is guessed.
   `last_used` are min / max across tools and `fab_id`. `source` is `mes`
   (list key only), `tool` (resident only; `n_uses` 0, dates `None`) or `both`.
   Provision's `product_id` / `layer_id` / `recipe_name` are the key's own
-  columns; VeritySEM answers `""` and a resident-only Provision recipe does
-  too, because `recipe_id` is never split.
+  columns; VeritySEM answers `""`. A resident-only Provision recipe has no
+  list-key row, so its `recipe_id` is split on `/` when it has exactly three
+  parts (else `""`).
 
 ## Endpoint: GET /api/<tool_slug>/recipe-usage/recipe?recipe_id=
 

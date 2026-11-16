@@ -17,9 +17,10 @@ provider 는 세 가지 raw 로더만 제공합니다 -- `load_list_rows`,
 * list 키의 grain 은 (eqp_id, recipe_id, fab_id) 입니다. (eqp_id, recipe_id) 는
   유일하지 않으므로 fab_id 를 가로질러 n_uses 는 더하고 first/last 는 min/max
   합니다. fab_id 는 응답에 나가지 않습니다.
-* recipe_id 는 통짜 문자열입니다. 어디서도 "/" 로 자르지 않습니다 -- VeritySEM
-  은 4조각이 아닌 id 가 실재합니다. Provision 의 split 컬럼은 키가 준 값만
-  옮깁니다.
+* VeritySEM recipe_id 는 자르지 않습니다 -- 4조각이 아닌 id 가 실재합니다.
+  Provision 의 split 컬럼은 키가 준 값을 우선 옮기고, 키에 행이 없는 장비 상주
+  전용 recipe 만 "/" 로 정확히 3조각일 때 잘라 채웁니다 (user-confirmed 2026-11-16,
+  나눠서 정렬하기 위해). 3조각이 아니면 비워 둡니다.
 * usage 의 기간은 행의 dt 로만 셉니다. 90일 창을 가정하지 않습니다.
 """
 
@@ -182,6 +183,11 @@ class _CatalogCell(_Seen):
         self.split = ("", "", "")
 
 
+def _provision_split(recipe_id: str) -> tuple[str, str, str]:
+    parts = recipe_id.split("/")
+    return (parts[0], parts[1], parts[2]) if len(parts) == 3 else ("", "", "")
+
+
 def build_catalog(
     tool_type: AmatToolType,
     fab_names: tuple[str, ...],
@@ -210,6 +216,8 @@ def build_catalog(
             cell = cells[(recipe_id, tool.fab_name)]
             cell.on_tool = True
             cell.eqp_ids.add(tool.eqp_id)
+            if tool_type == "provision" and not cell.in_mes:
+                cell.split = _provision_split(recipe_id)
 
     rows = [
         {

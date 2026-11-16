@@ -298,3 +298,24 @@ def test_status_with_no_rows_ends_yesterday_and_still_lists_the_roster():
 def test_status_refuses_a_reversed_or_over_long_window(start, end):
     with pytest.raises(WindowError):
         build_status("veritysem", (), ROSTER, USAGE_ROWS, start, end, today=date(2026, 11, 12))
+
+
+def test_a_resident_only_provision_recipe_is_split_into_its_three_columns():
+    roster = family_roster(SEM_ROWS, "provision")
+    resident = {"PCD9": ["4S8/4S8_CBL_C0A_UPH_4P/AVIS", "ODD/NAME", "A/B/C/D"]}
+
+    rows = build_catalog("provision", (), roster, [], resident)["rows"]
+
+    assert [(r["recipe_id"], r["product_id"], r["layer_id"], r["recipe_name"]) for r in rows] == [
+        ("4S8/4S8_CBL_C0A_UPH_4P/AVIS", "4S8", "4S8_CBL_C0A_UPH_4P", "AVIS"),
+        ("A/B/C/D", "", "", ""),
+        ("ODD/NAME", "", "", ""),
+    ]
+
+
+def test_a_resident_only_veritysem_recipe_is_never_split():
+    roster = family_roster(SEM_ROWS, "veritysem")
+    tool = next(iter(roster))
+    rows = build_catalog("veritysem", (), roster, [], {tool: ["FI/S2/POM"]})["rows"]
+
+    assert (rows[0]["product_id"], rows[0]["layer_id"], rows[0]["recipe_name"]) == ("", "", "")

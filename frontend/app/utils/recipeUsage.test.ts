@@ -123,3 +123,14 @@ test('a date range is pulled inside the loaded window', () => {
     { start: '2026-10-01', end: '2026-12-01' }
   )
 })
+
+test('Provision split columns sort as text, with blanks last both ways', () => {
+  const rows = [
+    catalogRow('8V3/8V3_POM/MON', { product_id: '8V3', layer_id: '8V3_POM', recipe_name: 'MON' }),
+    catalogRow('ODD/NAME'),
+    catalogRow('4S8/4S8_CBL/AVIS', { product_id: '4S8', layer_id: '4S8_CBL', recipe_name: 'AVIS' })
+  ]
+  assert.deepEqual(ids(sortRecipeCatalog(rows, 'product_id', false)), ['4S8/4S8_CBL/AVIS', '8V3/8V3_POM/MON', 'ODD/NAME'])
+  assert.deepEqual(ids(sortRecipeCatalog(rows, 'product_id', true)), ['8V3/8V3_POM/MON', '4S8/4S8_CBL/AVIS', 'ODD/NAME'])
+  assert.deepEqual(ids(sortRecipeCatalog(rows, 'recipe_name', false)), ['4S8/4S8_CBL/AVIS', '8V3/8V3_POM/MON', 'ODD/NAME'])
+})
