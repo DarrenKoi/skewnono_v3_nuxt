@@ -19,13 +19,13 @@ RAG 측이 지식·검색·답변 생성을 전담하고, chat 측은 front 를 
 | 역할 | 담당 |
 | --- | --- |
 | 문서 ingestion, 인덱스 빌드, MinIO figure 적재 | RAG 측 |
-| 검색·질의 rewrite·follow-ups | RAG 측 — 셋 다 `agent_query` **안에서** 일어납니다. chat 이 따로 부르는 함수는 없습니다(구 primitive 3함수는 2026-08-31 계약에서 폐기) |
+| 검색·질의 rewrite·follow-ups | RAG 측 — 셋 다 `agent_query` **안에서** 일어납니다. chat 이 따로 부르는 함수는 없습니다 |
 | LLM gateway 키 관리 (`skewnono_rag/config.py` 내장) | RAG 측 |
 | HTTP routes, 스레드 저장(SQLite), rate limit, 신원 | chat 측 |
-| scope 사전 게이트 | chat 측 — 2026-09-01 부터 **deny-list** 입니다. 명시적 off-topic·unsafe 마커가 있는 질의만 막히고, 나머지는 마커가 없어도 RAG 에 도달합니다(`scope/policy.py`) |
+| scope 사전 게이트 | chat 측 — **deny-list** 입니다. 명시적 off-topic·unsafe 마커가 있는 질의만 막히고, 나머지는 마커가 없어도 RAG 에 도달합니다(`scope/policy.py`) |
 | figure 서빙 (`figure_id` → MinIO webp), SPA 화면 | chat 측 |
 | 정형 데이터 tool 카탈로그 (`data_tools.py` — 이름·JSON Schema·`call()`), `attachments` 검증·저장·화면 | chat 측 — 정의·제공만 합니다. **부르는 쪽은 RAG** (`agent_query` 안에서 function calling 으로 묶음, 2026-09-19 편지) |
-| agent loop (검색 반복·답변 생성) | RAG 측 (`agent_query`) — chat 측 구 경로는 2026-08-31 삭제되었습니다 |
+| agent loop (검색 반복·답변 생성) | RAG 측 (`agent_query`) |
 | 모델 선택·system prompt | RAG 측 — chat 은 자체 LLM 호출이 없습니다 |
 
 집(mock) 환경에서는 RAG 측 역할 전부를 chat 의 mock provider 가 대역합니다.
@@ -57,27 +57,12 @@ RAG 측이 지식·검색·답변 생성을 전담하고, chat 측은 front 를 
 - 사실에는 출처 표기를 답니다: `RAG 측 확인 YYYY-MM-DD`,
   `office 확인 YYYY-MM-DD`, `user-confirmed`, 미확인 가정은 `OFFICE-VERIFY`.
 
-**완료된 안건**: 답변 전체를 RAG 의 `agent_query(question, messages,
-scope, timeout)` 하나로 옮기는 경계 변경이 끝났습니다
-(`docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 가 최종 계약).
+답변 전체는 RAG 의 `agent_query(question, messages, scope, timeout)` 하나를
+거칩니다 (`docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 가 최종 계약).
+계약 검증은 `answer/contract.py` 의 `--live` 러너가 합니다.
 
-구 경로(chat 측 agent loop, `llm.py`, egress guard, tool 6종, knowledge
-검색 seam)는 **사무실 full-path 검증 전에** 사용자 결정으로 삭제했습니다
-(2026-08-31). 이유는 두 경로를 함께 두는 비용이 검증 대기 기간보다 컸기
-때문입니다. 검증에서 문제가 나오면 되살릴 곳은 git 이며, 삭제 커밋 하나만
-되돌리면 구 경로가 그대로 복원됩니다.
-
-**사무실 full-path 검증 완료 (2026-09-01).** `answer/contract.py` 의
-`--live` 러너가 사무실 런타임에서 전부 `ok` 를 냈습니다 — import·서명·반환값.
-동거 배치가 처음으로 실증되었고(사내 의존성이 skewnono 의 `numpy>=2` 옆에서
-로드됨), 계약 검증이 편지 왕복에서 명령 한 번으로 바뀌었습니다.
-
-**화면 경로도 확인 완료 (2026-09-01).** 사무실에서 `/chat` 을 열어 그림이
-보이는 것까지 확인했습니다(user-confirmed). `figure_id` → MinIO webp 는
-`--live` 가 전혀 건드리지 않는 유일한 경로였고, 이로써 chat 은 집에서
-검증할 수 없던 경로가 하나도 남지 않았습니다. 실제 매뉴얼 파일 이름이
-serving charset(`^[\w .-]{1,128}$`)을 통과한다는 것도 같이 실증되었습니다 —
-RAG 측에 sanitization 이 없으므로 이 charset 을 좁히면 그때 깨집니다.
+figure 서빙의 파일명 charset 은 `^[\w .-]{1,128}$` 입니다. RAG 측에
+sanitization 이 없으므로 이 charset 을 좁히면 실제 매뉴얼 파일 이름이 깨집니다.
 
 ## 계약의 원본 (여기 요약하지 않습니다)
 

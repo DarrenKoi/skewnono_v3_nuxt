@@ -17,7 +17,7 @@ running order. Do not restate the rules here — two copies drift apart.
 - Family name must already be in `backend/ebeam/_tool_specs.py`
   (`SLUG_TO_ADAPTER`). If it is not, that registry entry comes first — the
   adapter folder name is read from there, never invented here.
-- `afm`, `skew`, `chat` are deferred: skip them.
+- `chat` has no `providers/` seam: skip it.
 
 ## The eight steps, in order
 
@@ -28,16 +28,17 @@ contract makes the contract follow the mock.
       family-specific TypedDict. If the new family cannot fill a field, write
       the null convention (`""` / `None`) into the contract's docstring.
 - [ ] **2. 스키마 기록** — add or extend `docs/datatables/<source>.txt`. The
-      office key/index name is decided here. Nothing is known about AMAT
-      sources yet, so mark every line `OFFICE-VERIFY` until a real office run
-      confirms it. Add the file→source→feature row in
+      office key/index name is decided here. What is known about AMAT sources
+      is in `docs/datatables/veritysem/` and `provision/`; mark anything not
+      recorded there `OFFICE-VERIFY` until a real office run confirms it. Add
+      the file→source→feature row in
       `docs/datatables/README.md`.
 - [ ] **3. mock 작성** — `<feature>/providers/<family>/mock.py`. Derive the
       tool list from `sem_list` (`vendor_nm` row), never generate it
       independently. The docstring records the same office facts as step 2.
 - [ ] **4. 템플릿 작성** — `<feature>/providers/<family>/office_example.py`,
-      tracked, `NotImplementedError` bodies, same public functions as the
-      family mock. Never create `office.py` at home.
+      tracked, the real adapter with the same public functions as the family
+      mock. Never create `office.py` at home.
 - [ ] **5. 디스패처 배선** — add `_adapter()` to
       `<feature>/providers/{mock,office_example}.py` (keep both files at the
       feature level). The 501 policy belongs to the `office_example.py`
